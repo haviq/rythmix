@@ -1958,7 +1958,7 @@ function viewLibrary(view, tab) {
     const pls = Library.playlists;
     body = `<div class="lib-actions">
         <button class="pill-btn primary" id="btn-newpl">${icon('i-plus')}<span>New playlist</span></button>
-        <button class="pill-btn" id="btn-import">${icon('i-download')}<span>Import from YT Music</span></button>
+        <button class="pill-btn" id="btn-import">${icon('i-download')}<span>Import from YT</span></button>
         <button class="pill-btn" id="btn-backup">${icon('i-download')}<span>Backup</span></button>
         <button class="pill-btn" id="btn-restore">${icon('i-upload')}<span>Restore</span></button>
       </div>`;
