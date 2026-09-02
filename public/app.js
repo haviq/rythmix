@@ -289,7 +289,9 @@ window.onYouTubeIframeAPIReady = () => {
           setTimeout(applyPlaybackQuality, 2000);
         }
         if (e.data === YT.PlayerState.BUFFERING) applyPlaybackQuality();
-        document.body.classList.toggle('paused', e.data !== YT.PlayerState.PLAYING);
+        // BUFFERING is NOT paused — treating it as paused flashes the play/pause icon
+        // (visible as pause/resume blink when SponsorBlock skips a segment mid-track).
+        document.body.classList.toggle('paused', e.data !== YT.PlayerState.PLAYING && e.data !== YT.PlayerState.BUFFERING);
         renderPlayButtons();
       },
       onPlaybackQualityChange: (e) => {
