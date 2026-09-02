@@ -1211,7 +1211,7 @@ body.hq-audio #yt-player {
   .pb-buttons { gap: 8px; }
   #mini-shuffle, #mini-repeat { display: none; }
   .play-circle { width: 34px; height: 34px; }
-  #view { padding: 18px 16px 30px; }
+  #view { padding: calc(18px + env(safe-area-inset-top, 0px)) 16px 30px; }
   .sr-top { flex-direction: row; gap: 14px; padding: 12px; }
   .sr-top img, .art-ph-sr { width: 92px; height: 92px; }
   .sr-title { font-size: 20px; }
