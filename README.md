@@ -2,9 +2,9 @@
 
 **Pemutar musik web gratis** dengan tampilan bergaya Spotify dan katalog berbasis YouTube Music. Tanpa akun.
 
-- **Website:** https://richmusic.vercel.app
+- **Website:** https://rich-music-puce.vercel.app/
 - **Repository:** https://github.com/haviq/rich-music
-- **Telegram:** https://t.me/ChRichStore
+- **Telegram:** https://t.me/haviq
 
 Project ini gratis dan bebas digunakan. Kamu dapat menjalankan, mengubah, melakukan deploy, atau membagikannya sesuai dengan ketentuan lisensi project.
 
