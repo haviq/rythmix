@@ -1,9 +1,9 @@
-# Rich Music
+# Rythmix Music
 
 **Pemutar musik web gratis** dengan tampilan bergaya Spotify dan katalog berbasis YouTube Music. Tanpa akun.
 
-- **Website:** https://rich-music-puce.vercel.app/
-- **Repository:** https://github.com/haviq/rich-music
+- **Website:** https://rythmix-puce.vercel.app/
+- **Repository:** https://github.com/haviq/rythmix
 - **Telegram:** https://t.me/haviq
 
 Project ini gratis dan bebas digunakan. Kamu dapat menjalankan, mengubah, melakukan deploy, atau membagikannya sesuai dengan ketentuan lisensi project.
@@ -12,7 +12,7 @@ Project ini gratis dan bebas digunakan. Kamu dapat menjalankan, mengubah, melaku
 
 ## Tentang
 
-Rich Music adalah pemutar musik berbasis web yang memungkinkan kamu mencari dan memutar musik langsung dari browser.
+Rythmix Music adalah pemutar musik berbasis web yang memungkinkan kamu mencari dan memutar musik langsung dari browser.
 
 Tersedia berbagai fitur seperti pencarian lagu, album dan artis, playlist, favorit, riwayat pemutaran, lirik, antrian lagu, serta berbagai pengaturan pemutar.
 
@@ -20,7 +20,7 @@ Library seperti favorit, playlist, riwayat, dan statistik disimpan secara lokal 
 
 Audio diputar menggunakan pemutar YouTube.
 
-> Rich Music tidak berafiliasi dengan YouTube, Google, maupun Spotify.
+> Rythmix Music tidak berafiliasi dengan YouTube, Google, maupun Spotify.
 
 ---
 
@@ -131,5 +131,5 @@ Fitur library:
 Clone repository:
 
 ```bash
-git clone https://github.com/haviq/rich-music.git
-cd rich-music
+git clone https://github.com/haviq/rythmix.git
+cd rythmix
