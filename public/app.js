@@ -325,6 +325,7 @@ if (window.RichMusicBridge) {
       }
     };
     YT.Player.prototype.loadVideoById = function(opts) {
+      if (window.Player) window.Player._prepared = false; // full play path, not a prepped resume
       var id = typeof opts === 'string' ? opts : (opts && opts.videoId);
       var start = (opts && opts.startSeconds) || 0;
       var s = window.Player && window.Player.current;
@@ -336,7 +337,19 @@ if (window.RichMusicBridge) {
       // fallback: JS resolves via download API if NewPipe fails (__rmNativeFallback)
       window.RichMusicBridge.play(id, title, artist, start);
     };
-    YT.Player.prototype.cueVideoById = function(opts) { this.loadVideoById(opts); };
+    YT.Player.prototype.cueVideoById = function(opts) {
+      // native: prepare (resolve+setMediaItem+prepare, NO play) so a restored (cued)
+      // track starts instantly on tap — skips resolve+buffer inside the play() path.
+      if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prepare) {
+        var id = typeof opts === 'string' ? opts : (opts && opts.videoId);
+        var start = (opts && opts.startSeconds) || 0;
+        var s = window.Player && window.Player.current;
+        if (window.Player) window.Player._prepared = true;
+        window.RichMusicBridge.prepare(id, (s && s.title) || '', (s && s.artist) || '', start);
+        return;
+      }
+      this.loadVideoById(opts);
+    };
     YT.Player.prototype.playVideo = function() {
       // no optimistic state — native pushes real state from main thread in ms;
       // optimistic here fights real ticks and causes pause/resume spam on track switch
@@ -647,7 +660,9 @@ function togglePlay() {
   if (Player.cued) {
     const s = Player.current;
     const hasRadio = Player.queue.some((q, i) => i > Player.index && !q._user);
-    startCurrent();
+    // restored track already prepped (resolve+setMediaItem+prepare) → resume instantly, no reload
+    if (Player._prepared) { Player.cued = false; Player.yt.playVideo(); }
+    else startCurrent();
     if (!hasRadio) fetchQueue(s);
     return;
   }
