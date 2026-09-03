@@ -1660,11 +1660,36 @@ function initHelloMeta() {
    plays instantly — resolve() hits StreamResolver cache instead of NewPipe (~1-2s). */
 function warmResolve(list) {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.prewarm) return;
-  const seen = {}; let n = 0;
+  const ids = [], seen = {};
   for (const s of list || []) {
-    const id = s && s.videoId;
-    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 20) break; }
+    const id = typeof s === 'string' ? s : (s && s.videoId);
+    if (id && !seen[id]) { seen[id] = 1; ids.push(id); }
   }
+  if (!ids.length) return;
+  // stagger so NewPipe isn't hammered by 30 concurrent resolves (rate-limit → slow)
+  const CONC = 4, MAX = 30; let next = 0, launched = 0;
+  const run = () => {
+    if (launched >= MAX) return;
+    const id = ids[next++];
+    if (id == null) return;
+    launched++;
+    try { window.RichMusicBridge.prewarm(id); } catch (e) {}
+    setTimeout(run, 120);
+  };
+  for (let i = 0; i < CONC; i++) run();
+}
+/* Collect every song videoId currently rendered in a view (cards, quick-cards,
+   track rows all carry data-item JSON) so visible-but-not-in-library tracks
+   (Mix for you, /api/home sections) also get pre-resolved. */
+function collectVisibleVideoIds(root) {
+  const ids = [];
+  $$('[data-item]', root).forEach((el) => {
+    try {
+      const it = JSON.parse(el.dataset.item || '{}');
+      if (it && it.videoId) ids.push(it.videoId);
+    } catch (e) {}
+  });
+  return ids;
 }
 
 async function viewHome(view) {
@@ -1706,10 +1731,13 @@ async function viewHome(view) {
   html += d.sections.map(shelfHTML).join('');
   view.innerHTML = html;
   initHelloMeta();
-  warmResolve([...Player.queue, ...Library.history, ...Library.favorites, ...Library.saved]);
   bindItems(view);
   $$('[data-pl]', view).forEach((el) => el.addEventListener('click', () => go(`#/localpl/${el.dataset.pl}`)));
-  loadMixForYou();
+  // prewarm everything currently on screen (incl /api/home sections) AND re-gather
+  // once "Mix for you" fills in late — so any visible track resolves before tap.
+  const gather = () => warmResolve(collectVisibleVideoIds(view));
+  gather();
+  loadMixForYou().finally(gather);
 }
 
 /* "Mix for you" — personalized-feel shelf built from your listening history (no account needed) */
