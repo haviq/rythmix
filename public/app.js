@@ -299,7 +299,19 @@ window.onYouTubeIframeAPIReady = () => {
         const best = bestQuality();
         if (e.data && qualityRank(e.data) > qualityRank(best)) applyPlaybackQuality();
       },
-      onError: () => { toast('Track unavailable, skipping…'); setTimeout(() => nextTrack(true), 800); },
+      onError: () => {
+        // retry the SAME track once before skipping — a single flaky resolve
+        // (NewPipe/PO-token hiccup) shouldn't jump to a random "offtopic" song.
+        Player._playErrors = (Player._playErrors || 0) + 1;
+        if (Player._playErrors <= 2 && Player.current) {
+          toast('Menyiapkan ulang…');
+          setTimeout(() => { if (Player.current) startCurrent(); }, 700);
+        } else {
+          Player._playErrors = 0;
+          toast('Track unavailable, skipping…');
+          setTimeout(() => nextTrack(true), 800);
+        }
+      },
     },
   });
 };
@@ -531,6 +543,7 @@ function moveQueued(i, dir) {
 function startCurrent() {
   Player.cued = false;
   Player.pending = null;
+  Player._playErrors = 0;
   const s = Player.current;
   if (!s) return;
   const loadId = ++Player.loadId;
