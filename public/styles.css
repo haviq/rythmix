@@ -1453,3 +1453,13 @@ html[data-theme="light"] .modal-card .pl-form-input {
   text-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 18px rgba(255,215,94,0.3);
 }
 .lyric-line.active:hover { color: #ffd75e; }
+
+/* ---------- Rythmix iOS: center lyrics + real bold highlight (base 400) ---------- */
+.lyric-line { text-align: center; font-weight: 400; }
+.lyric-line.active {
+  color: #ffd75e;
+  font-weight: 700;
+  transform: scale(1.1);
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 18px rgba(255,215,94,0.3);
+}
+.lyric-line.active:hover { color: #ffd75e; }
