@@ -315,7 +315,7 @@ window.onYouTubeIframeAPIReady = () => {
     },
   });
 };
-if (window.RichMusicBridge) {
+if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/) || [])[1] || '')) {
   // native mode: shim YT.Player backed by RichMusicBridge (Kotlin ExoPlayer)
   window.__nativeMode = true;
   (function() {
