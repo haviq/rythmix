@@ -1430,3 +1430,16 @@ html[data-theme="light"] .modal-card .pl-form-input {
   .hello-clock { font-size: 24px; }
   .hello-weather { font-size: 12px; }
 }
+
+/* ---------- Rythmix iOS: current lyric — bigger, gold, gentle glow ---------- */
+@keyframes lyr-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); filter: blur(3px); }
+  to { opacity: 1; transform: scale(1.1); filter: none; }
+}
+.lyric-line.active {
+  color: #f5c542;
+  transform: scale(1.1);
+  font-weight: 800;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 18px rgba(245,197,66,0.28);
+}
+.lyric-line.active:hover { color: #f5c542; }
