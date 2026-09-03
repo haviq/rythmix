@@ -1618,7 +1618,7 @@ function warmResolve(list) {
   const seen = {}; let n = 0;
   for (const s of list || []) {
     const id = s && s.videoId;
-    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 8) break; }
+    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 14) break; }
   }
 }
 
@@ -1661,7 +1661,7 @@ async function viewHome(view) {
   html += d.sections.map(shelfHTML).join('');
   view.innerHTML = html;
   initHelloMeta();
-  warmResolve([...Library.history, ...Library.favorites]);
+  warmResolve([...Player.queue, ...Library.history, ...Library.favorites]);
   bindItems(view);
   $$('[data-pl]', view).forEach((el) => el.addEventListener('click', () => go(`#/localpl/${el.dataset.pl}`)));
   loadMixForYou();
