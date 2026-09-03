@@ -1572,6 +1572,30 @@ const skeletonHTML = `<div class="page-title">&nbsp;</div>` + Array(3).fill(`
   <div class="carousel">${Array(6).fill('<div><div class="skeleton" style="width:160px;height:160px"></div></div>').join('')}</div></div>`).join('');
 
 /* ---- Home ---- */
+/* ---------- Rythmix iOS: live clock + weather in header (Home & Charts) ---------- */
+const WMO_ICON = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',56:'🌧',57:'🌧',61:'🌧',63:'🌧',65:'🌧',66:'🌧',67:'🌧',71:'🌨',73:'🌨',75:'🌨',77:'🌨',80:'🌦',81:'🌧',82:'🌧',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};
+function helloMetaHTML() { return `<div class="hello-meta"><div class="hello-weather" id="hello-weather"></div><div class="hello-clock" id="hello-clock">--:--</div></div>`; }
+async function fetchHelloWeather() {
+  const el = document.getElementById('hello-weather'); if (!el) return;
+  let lat = null, lon = null, place = '';
+  const pos = await new Promise((r) => navigator.geolocation ? navigator.geolocation.getCurrentPosition((p) => r(p), () => r(null), { timeout: 6000, maximumAge: 600000 }) : r(null));
+  if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude; }
+  else { try { const g = await fetch('https://ipwho.is/').then((x) => x.json()); if (g && g.success !== false) { lat = g.latitude; lon = g.longitude; place = g.city || ''; } } catch (e) {} }
+  if (lat == null) { el.textContent = ''; return; }
+  try {
+    const j = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`).then((x) => x.json());
+    const t = Math.round(j.current.temperature_2m), c = j.current.weather_code;
+    el.innerHTML = `${WMO_ICON[c] || ''} ${t}°${place ? `<span class="hw-place">${esc(place)}</span>` : ''}`;
+  } catch (e) {}
+}
+function initHelloMeta() {
+  const el = document.getElementById('hello-clock');
+  const tick = () => { const d = new Date(); const s = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); if (el && el.textContent !== s) el.textContent = s; };
+  tick();
+  if (!window.__helloClockInt) window.__helloClockInt = setInterval(tick, 10000);
+  if (!window.__helloWeatherFetched) { window.__helloWeatherFetched = 1; fetchHelloWeather(); }
+}
+
 async function viewHome(view) {
   view.innerHTML = skeletonHTML;
   const now = new Date();
@@ -1584,7 +1608,7 @@ async function viewHome(view) {
   const pls = Library.playlists.filter((p) => p.tracks && p.tracks.length);
   const saved = Library.saved.slice(0, 12);
   const dateLine = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
-  let html = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">${greet}</h1></div></div>`;
+  let html = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">${greet}</h1></div>${helloMetaHTML()}</div>`;
   if (hist.length) {
     html += `<div class="shelf-title">Recently played</div><div class="quick-grid">${hist.slice(0, 8).map((s) => quickCardHTML({ ...s, type: 'song', subtitle: s.artist })).join('')}</div>`;
   }
@@ -1610,6 +1634,7 @@ async function viewHome(view) {
   }
   html += d.sections.map(shelfHTML).join('');
   view.innerHTML = html;
+  initHelloMeta();
   bindItems(view);
   $$('[data-pl]', view).forEach((el) => el.addEventListener('click', () => go(`#/localpl/${el.dataset.pl}`)));
   loadMixForYou();
@@ -1849,8 +1874,9 @@ async function viewCharts(view) {
       body += shelfHTML(sec);
     }
   });
-  view.innerHTML = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">Charts</h1></div></div>`
+  view.innerHTML = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">Charts</h1></div>${helloMetaHTML()}</div>`
     + (body || emptyHTML('No charts right now', 'Try again in a moment.', { label: 'Retry', go: '#/charts', ic: 'i-chart' }));
+  initHelloMeta();
   bindItems(view);
 }
 

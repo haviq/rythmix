@@ -1420,3 +1420,13 @@ html[data-theme="light"] .modal-card .pl-form-input {
   #nowplaying .np-volume { display: flex; }
   #nowplaying #np-lyric-preview { max-width: 560px; text-align: center; font-size: 13.5px; }
 }
+
+/* ---------- Rythmix iOS: live clock + weather in header ---------- */
+.hello-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; margin-left: auto; }
+.hello-clock { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+.hello-weather { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.hello-weather .hw-place { opacity: 0.75; margin-left: 4px; }
+@media (max-width: 640px) {
+  .hello-clock { font-size: 24px; }
+  .hello-weather { font-size: 12px; }
+}
