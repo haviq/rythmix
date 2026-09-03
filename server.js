@@ -532,6 +532,24 @@ app.get('/api/download-start', async (req, res) => {
   }
 });
 
+/* Direct audio stream URL via yt-dlp (no MP3 convert, reliable, anti-PO-Token).
+   Fast (~0.5-1.5s), returns a googlevideo m4a URL ExoPlayer can stream + seek.
+   Preferred over loader.to converter (slow + "converter refused" -> skip). */
+app.get('/api/direct', async (req, res) => {
+  const videoId = String(req.query.v || '');
+  if (!/^[\w-]{6,20}$/.test(videoId)) return res.status(400).json({ error: 'bad id' });
+  try {
+    const ytdl = require('youtube-dl-exec');
+    const url = await ytdl('https://www.youtube.com/watch?v=' + videoId, {
+      format: 'bestaudio/best', getUrl: true, noPlaylist: true, socketTimeout: 20000,
+    });
+    if (!url) return res.status(502).json({ error: 'no stream url' });
+    res.json({ url });
+  } catch (e) {
+    res.status(502).json({ error: String(e && e.message || e) });
+  }
+});
+
 /* poll job progress: returns { progress (0-1000), done, url } */
 app.get('/api/download-progress', async (req, res) => {
   const purl = String(req.query.progressUrl || '');
