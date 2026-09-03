@@ -1611,6 +1611,17 @@ function initHelloMeta() {
   if (!window.__helloWeatherFetched) { window.__helloWeatherFetched = 1; fetchHelloWeather(); }
 }
 
+/* Pre-warm native resolve cache for likely-tapped tracks (home) so clicking a title
+   plays instantly — resolve() hits StreamResolver cache instead of NewPipe (~1-2s). */
+function warmResolve(list) {
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.prewarm) return;
+  const seen = {}; let n = 0;
+  for (const s of list || []) {
+    const id = s && s.videoId;
+    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 8) break; }
+  }
+}
+
 async function viewHome(view) {
   view.innerHTML = skeletonHTML;
   const now = new Date();
@@ -1650,6 +1661,7 @@ async function viewHome(view) {
   html += d.sections.map(shelfHTML).join('');
   view.innerHTML = html;
   initHelloMeta();
+  warmResolve([...Library.history, ...Library.favorites]);
   bindItems(view);
   $$('[data-pl]', view).forEach((el) => el.addEventListener('click', () => go(`#/localpl/${el.dataset.pl}`)));
   loadMixForYou();
