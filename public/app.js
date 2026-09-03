@@ -313,6 +313,8 @@ if (window.RichMusicBridge) {
       var dur = d > 0 ? d : _rmSt.dur;
       var changed = s !== _rmSt.state || dur !== _rmSt.dur;
       _rmSt.state = s; _rmSt.time = t; _rmSt.dur = dur;
+      window.__rmPlaying = (s === 1); // 1 = PLAYING
+      if (window.__rmPlaying) { clearTimeout(window.__rmWatchdog); }
       if (changed && _rmEv.onStateChange) _rmEv.onStateChange({ data: s });
     };
     window.__rmOnError = function() { if (_rmEv.onError) _rmEv.onError({ data: 2 }); };
@@ -536,6 +538,15 @@ function startCurrent() {
     if (loadId !== Player.loadId) return;
     if (!Player.ready) return setTimeout(tryPlay, 300);
     Player.yt.loadVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
+    // watchdog: if NewPipe resolve stalls (>8s, no PLAYING yet) auto-switch to the
+    // proven download-API path so the track starts without a manual re-tap.
+    window.__rmPlaying = false;
+    clearTimeout(window.__rmWatchdog);
+    window.__rmWatchdog = setTimeout(() => {
+      if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
+        try { __rmNativeFallback(s.videoId); } catch (e) {}
+      }
+    }, 8000);
     Player.yt.setPlaybackRate(Player.speed);
     Player.yt.playVideo();
     applyPlaybackQuality();
@@ -766,6 +777,29 @@ function toggleSB() {
 
 /* ================= lyrics ================= */
 let lyricsReqId = 0; // guard against out-of-order responses on fast skips
+/* Client-side LRCLIB fallback — covers cover/less-common tracks the server proxy misses.
+   No API key; CORS is open on lrclib.net. Used only when /api/lyrics returns nothing. */
+async function fallbackLrclib(title, artist) {
+  const tries = [
+    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=`,
+    `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`,
+    `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}`,
+  ];
+  for (const u of tries) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) continue;
+      const d = await r.json();
+      const hit = Array.isArray(d) ? d[0] : d;
+      if (!hit) continue;
+      const synced = hit.syncedLyrics || null;
+      const plain = hit.plainLyrics || null;
+      if (synced || plain) return { synced, plain, source: 'LRCLIB' };
+    } catch {}
+  }
+  return null;
+}
+
 async function loadLyrics(song, { silent = false } = {}) {
   if (!song) return;
   const myReq = ++lyricsReqId;
@@ -782,11 +816,22 @@ async function loadLyrics(song, { silent = false } = {}) {
     $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
   }
   try {
-    const d = await api(`/api/lyrics?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&duration=${durationSec}&browseId=${encodeURIComponent(Player.lyricsBrowseId || '')}`);
-    if (myReq !== lyricsReqId) return; // a newer request superseded us
-    // never downgrade: keep existing synced lyrics if the retry found less
-    if (Player.lyrics.synced && !d.synced) return;
-    Player.lyrics = { ...d, lines: d.synced ? parseLRC(d.synced) : [] };
+    let d;
+    try {
+      d = await api(`/api/lyrics?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&duration=${durationSec}&browseId=${encodeURIComponent(Player.lyricsBrowseId || '')}`);
+    } catch { d = null; }
+    if (myReq !== lyricsReqId) return;
+    if (Player.lyrics.synced && d && !d.synced) return; // never downgrade
+    if (!d || (!d.synced && !d.plain)) {
+      // server missed it — try LRCLIB directly (covers covers / auto-gen tracks)
+      const fb = await fallbackLrclib(title, artist);
+      if (fb) { d = fb; }
+    }
+    if (!d || (!d.synced && !d.plain)) {
+      if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
+    } else {
+      Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
+    }
   } catch {
     if (myReq !== lyricsReqId) return;
     if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
@@ -1618,7 +1663,7 @@ function warmResolve(list) {
   const seen = {}; let n = 0;
   for (const s of list || []) {
     const id = s && s.videoId;
-    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 14) break; }
+    if (id && !seen[id]) { seen[id] = 1; try { window.RichMusicBridge.prewarm(id); } catch (e) {} if (++n >= 20) break; }
   }
 }
 
@@ -1661,7 +1706,7 @@ async function viewHome(view) {
   html += d.sections.map(shelfHTML).join('');
   view.innerHTML = html;
   initHelloMeta();
-  warmResolve([...Player.queue, ...Library.history, ...Library.favorites]);
+  warmResolve([...Player.queue, ...Library.history, ...Library.favorites, ...Library.saved]);
   bindItems(view);
   $$('[data-pl]', view).forEach((el) => el.addEventListener('click', () => go(`#/localpl/${el.dataset.pl}`)));
   loadMixForYou();
