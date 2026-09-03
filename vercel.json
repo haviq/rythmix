@@ -2,9 +2,11 @@
   "version": 2,
   "builds": [
     { "src": "api/index.js", "use": "@vercel/node", "config": { "maxDuration": 60 } },
+    { "src": "api/direct.py", "use": "@vercel/python" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/api/direct", "dest": "/api/direct.py" },
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/(.+\\.(css|js|png|ico|svg|json|webmanifest|jpg|jpeg|webp))", "dest": "/public/$1" },
     { "src": "/(.*)", "dest": "/public/index.html" }
