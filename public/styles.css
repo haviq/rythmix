@@ -5,8 +5,8 @@
   --card: #1c1c22;
   --card-hover: #26262e;
   --elevated: #232329;
-  --accent: #0a84ff;
-  --accent-bright: #0a84ff;
+  --accent: #f5b301;
+  --accent-bright: #ffd54a;
   --text: #ffffff;
   --muted: rgba(235, 235, 245, 0.6);
   --subdued: rgba(235, 235, 245, 0.32);
@@ -20,7 +20,7 @@
   --chip-on-bg: #ffffff;
   --chip-on-fg: #000000;
   --bar-bg: rgba(255, 255, 255, 0.22);
-  --bar-fill: #0a84ff;
+  --bar-fill: #ffd54a;
   --hover: rgba(255, 255, 255, 0.08);
   --hover-strong: rgba(255, 255, 255, 0.14);
   --lyric-dim: rgba(255, 255, 255, 0.36);
@@ -683,7 +683,8 @@ body.np-open.has-player #nowplaying { margin-bottom: var(--player-h); }
 #np-bg::after {
   content: ""; position: absolute; inset: 0;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.55) 40%, rgba(0, 0, 0, 0.78) 100%);
+    linear-gradient(180deg, rgba(20, 14, 0, 0.30) 0%, rgba(10, 8, 2, 0.55) 45%, rgba(0, 0, 0, 0.82) 100%),
+    radial-gradient(ellipse 120% 70% at 50% -10%, rgba(245, 179, 1, 0.30) 0%, rgba(245, 179, 1, 0) 60%);
 }
 html[data-theme="light"] #np-bg::after {
   background:

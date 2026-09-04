@@ -16,9 +16,10 @@ const api = async (path) => {
   return r.json();
 };
 
-const fmtTime = (s) => {
+const fmtTime = (s, withSec) => {
   s = Math.max(0, Math.floor(s || 0));
   const m = Math.floor(s / 60), sec = s % 60;
+  if (withSec) return `${m}:${String(sec).padStart(2, '0')}.${String(Math.floor((s % 1) * 10) || 0).padStart(2, '0')}`;
   return `${m}:${String(sec).padStart(2, '0')}`;
 };
 
@@ -37,9 +38,10 @@ function hueFrom(str) {
   return Math.abs(h) % 360;
 }
 function applyTint(key) {
-  document.documentElement.style.setProperty('--tint', hueFrom(key));
+  // gold branding — hue locked, no per-song tint
+  document.documentElement.style.setProperty('--tint', '43');
   const main = $('#main');
-  if (main) main.style.setProperty('--tint', hueFrom(key));
+  if (main) main.style.setProperty('--tint', '43');
 }
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
@@ -748,11 +750,11 @@ setInterval(() => {
   $('#mini-progress-fill').style.width = pct + '%';
   const knob = $('.pb-knob');
   if (knob) knob.style.left = pct + '%';
-  $('#mini-cur').textContent = fmtTime(cur);
+  $('#mini-cur').textContent = fmtTime(cur, true);
   $('#mini-dur').textContent = fmtTime(dur);
   if (!isPreviewing() && !seekDragging) {
     $('#np-range').value = dur ? Math.round((cur / dur) * 1000) : 0;
-    $('#np-cur').textContent = fmtTime(cur);
+    $('#np-cur').textContent = fmtTime(cur, true);
     $('#np-dur').textContent = fmtTime(dur);
   }
   if (!isPreviewing()) updateLyricHighlight(cur);
@@ -2964,6 +2966,11 @@ Player.pipWin = null;
 Player.floatOn = false;
 
 const FW_CSS = `
+  @font-face {
+    font-family: 'Taste Bread HD';
+    src: url('https://rythmix-music.vercel.app/fonts/tastebread.otf') format('opentype');
+    font-display: swap;
+  }
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: #121212; color: #fff;
     font-family: Figtree, Segoe UI, sans-serif; overflow: hidden; }
@@ -2979,7 +2986,7 @@ const FW_CSS = `
   .fw-meta { min-width: 0; flex: 1; }
   #fw-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #fw-artist { font-size: 12px; opacity: .65; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #fw-lyric { margin-top: 5px; font-size: 12px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
+  #fw-lyric { margin-top: 5px; font-family: 'Taste Bread HD', Figtree, sans-serif; font-size: 13px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
   #fw-lyric:empty { display: none; }
   .fw-bar { margin-top: 8px; height: 4px; background: rgba(255,255,255,.22); border-radius: 99px; cursor: pointer; overflow: hidden; }
   html[data-theme="light"] .fw-bar { background: rgba(0,0,0,.18); }
