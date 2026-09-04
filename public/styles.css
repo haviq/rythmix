@@ -1463,3 +1463,8 @@ html[data-theme="light"] .modal-card .pl-form-input {
   text-shadow: 0 2px 20px rgba(0,0,0,0.5), 0 0 18px rgba(255,215,94,0.3);
 }
 .lyric-line.active:hover { color: #ffd75e; }
+
+/* ---------- v4.0 app: lyrics extra bold ---------- */
+.lyric-line { font-weight: 900; }
+.lyric-line.active { font-weight: 900; }
+.lyric-plain { font-weight: 700; }
