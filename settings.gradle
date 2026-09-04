@@ -1,0 +1,2 @@
+rootProject.name = "RichMusic"
+include ':app'

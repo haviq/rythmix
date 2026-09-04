@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rythmix Music</string>
+    <string name="title_activity_main">Rythmix Music</string>
+    <string name="channel_playback">Playback</string>
+    <string name="notification_playing">Playing in background</string>
+</resources>

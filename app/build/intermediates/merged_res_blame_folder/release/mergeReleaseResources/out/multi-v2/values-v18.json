@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.haviq.richmusic.app-mergeReleaseResources-35:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "/opt/data/.gradle/caches/8.14.3/transforms/14cb83010c4337cc0a692cd2158b5ba9/transformed/appcompat-1.7.1/res/values-v18/values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

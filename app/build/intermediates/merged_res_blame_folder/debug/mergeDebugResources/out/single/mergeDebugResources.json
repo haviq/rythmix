@@ -1,0 +1,82 @@
+[
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-mdpi_ic_launcher_foreground.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-mdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-hdpi_ic_launcher_foreground.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-hdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xhdpi_ic_launcher_foreground.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.haviq.richmusic.app-debug-28:/layout_activity_main.xml.flat",
+        "source": "com.haviq.richmusic.app-main-30:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/drawable-v24_ic_launcher_foreground.xml.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/drawable-v24/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/layout_activity_main.xml.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxxhdpi_ic_launcher_foreground.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxxhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxhdpi_ic_launcher_foreground.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxhdpi/ic_launcher_foreground.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-mdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xhdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-debug-28:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "/opt/data/.gradle/daemon/8.14.3/com.haviq.richmusic.app-main-30:/mipmap-xxxhdpi/ic_launcher_round.png"
+    }
+]

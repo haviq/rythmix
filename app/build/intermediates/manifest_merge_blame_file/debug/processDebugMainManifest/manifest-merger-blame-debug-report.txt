@@ -1,0 +1,167 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.haviq.richmusic"
+4    android:versionCode="25"
+5    android:versionName="3.4" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="36" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:4:5-67
+11-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:4:22-64
+12    <uses-permission android:name="android.permission.WAKE_LOCK" />
+12-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:5:5-68
+12-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:5:22-65
+13    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+13-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:6:5-77
+13-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:6:22-74
+14    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+14-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:7:5-92
+14-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:7:22-89
+15    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+15-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:8:5-77
+15-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:8:22-74
+16    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+16-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:9:5-78
+16-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:9:22-75
+17    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+17-->[androidx.media3:media3-common:1.5.1] /opt/data/.gradle/caches/8.14.3/transforms/5c28298094f3ee6df7b91a9c7ecfaf01/transformed/media3-common-1.5.1/AndroidManifest.xml:22:5-79
+17-->[androidx.media3:media3-common:1.5.1] /opt/data/.gradle/caches/8.14.3/transforms/5c28298094f3ee6df7b91a9c7ecfaf01/transformed/media3-common-1.5.1/AndroidManifest.xml:22:22-76
+18
+19    <permission
+19-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:22:5-24:47
+20        android:name="com.haviq.richmusic.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+20-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:23:9-81
+21        android:protectionLevel="signature" />
+21-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:24:9-44
+22
+23    <uses-permission android:name="com.haviq.richmusic.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+23-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:26:5-97
+23-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:26:22-94
+24
+25    <application
+25-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:11:5-39:19
+26        android:allowBackup="true"
+26-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:12:9-35
+27        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+27-->[androidx.core:core:1.15.0] /opt/data/.gradle/caches/8.14.3/transforms/15aab0cb6d415f148b5b7e970eda6dd3/transformed/core-1.15.0/AndroidManifest.xml:28:18-86
+28        android:debuggable="true"
+29        android:extractNativeLibs="false"
+30        android:icon="@mipmap/ic_launcher"
+30-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:13:9-43
+31        android:label="@string/app_name"
+31-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:14:9-41
+32        android:roundIcon="@mipmap/ic_launcher_round"
+32-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:15:9-54
+33        android:supportsRtl="true"
+33-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:16:9-35
+34        android:theme="@style/Theme.RichMusic"
+34-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:17:9-47
+35        android:usesCleartextTraffic="false" >
+35-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:18:9-45
+36        <activity
+36-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:20:9-30:20
+37            android:name="com.haviq.richmusic.MainActivity"
+37-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:21:13-41
+38            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+38-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:23:13-148
+39            android:exported="true"
+39-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:22:13-36
+40            android:launchMode="singleTask"
+40-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:24:13-44
+41            android:theme="@style/Theme.RichMusic" >
+41-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:25:13-51
+42            <intent-filter>
+42-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:26:13-29:29
+43                <action android:name="android.intent.action.MAIN" />
+43-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:27:17-69
+43-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:27:25-66
+44
+45                <category android:name="android.intent.category.LAUNCHER" />
+45-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:28:17-77
+45-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:28:27-74
+46            </intent-filter>
+47        </activity>
+48
+49        <service
+49-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:32:9-37:19
+50            android:name="com.haviq.richmusic.AudioService"
+50-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:33:13-41
+51            android:exported="false"
+51-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:34:13-37
+52            android:foregroundServiceType="mediaPlayback"
+52-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:36:13-58
+53            android:stopWithTask="false" >
+53-->/opt/data/rythmix-native/app/src/main/AndroidManifest.xml:35:13-41
+54        </service>
+55
+56        <provider
+56-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+57            android:name="androidx.startup.InitializationProvider"
+57-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+58            android:authorities="com.haviq.richmusic.androidx-startup"
+58-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+59            android:exported="false" >
+59-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+60            <meta-data
+60-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+61                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+61-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+62                android:value="androidx.startup" />
+62-->[androidx.emoji2:emoji2:1.3.0] /opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+63            <meta-data
+63-->[androidx.lifecycle:lifecycle-process:2.6.2] /opt/data/.gradle/caches/8.14.3/transforms/13ad6a0c74c507b44dcbbdd3970f2c72/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+64                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+64-->[androidx.lifecycle:lifecycle-process:2.6.2] /opt/data/.gradle/caches/8.14.3/transforms/13ad6a0c74c507b44dcbbdd3970f2c72/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+65                android:value="androidx.startup" />
+65-->[androidx.lifecycle:lifecycle-process:2.6.2] /opt/data/.gradle/caches/8.14.3/transforms/13ad6a0c74c507b44dcbbdd3970f2c72/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+66            <meta-data
+66-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+67                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+67-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+68                android:value="androidx.startup" />
+68-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+69        </provider>
+70
+71        <receiver
+71-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+72            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+72-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+73            android:directBootAware="false"
+73-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+74            android:enabled="true"
+74-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+75            android:exported="true"
+75-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+76            android:permission="android.permission.DUMP" >
+76-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+77            <intent-filter>
+77-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+78                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+78-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+78-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+79            </intent-filter>
+80            <intent-filter>
+80-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+81                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+81-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+82            </intent-filter>
+83            <intent-filter>
+83-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+84                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+84-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+84-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+85            </intent-filter>
+86            <intent-filter>
+86-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+87                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+87-->[androidx.profileinstaller:profileinstaller:1.3.1] /opt/data/.gradle/caches/8.14.3/transforms/b46a60bd101333f27beda6c2933d078d/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+88            </intent-filter>
+89        </receiver>
+90    </application>
+91
+92</manifest>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <string name="app_name">Rythmix Music</string>
+    <string name="channel_playback">Playback</string>
+    <string name="notification_playing">Playing in background</string>
+    <string name="title_activity_main">Rythmix Music</string>
+    <style name="Theme.RichMusic" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+    </style>
+</resources>
