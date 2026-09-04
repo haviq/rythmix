@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 38,
-    "versionName": "1.2",
+    "versionCode": 39,
+    "versionName": "1.3",
     "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
-    "notes": "v1.2: fix EQ slider WebView + RECORD_AUDIO utk visualizer"
+    "notes": "v1.3: runtime permission RECORD_AUDIO untuk visualizer"
   },
   "maintenance": {
     "enabled": false,
