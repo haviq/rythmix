@@ -604,6 +604,16 @@ function cleanTitle(t) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+/* extra title variants for lyrics lookup — "tanpa terkecuali" pass */
+function lyricTitleVariants(t) {
+  const base = cleanTitle(t);
+  const out = new Set([base]);
+  const stripped = base.replace(/\s*[(\[].*?[\)\]]/g, '').replace(/\s+/g, ' ').trim(); // strip ALL parens/brackets
+  if (stripped && stripped !== base) out.add(stripped);
+  const noDash = base.match(/^(.{2,48}?)\s*[-–—]\s+(.+)$/); // "Artist - Title" pasted as track name
+  if (noDash) { out.add(noDash[2].trim()); out.add(noDash[1].trim()); }
+  return [...out].filter(Boolean).slice(0, 3);
+}
 function primaryArtist(a) {
   return String(a || '')
     .split(/\s*[,&•·]\s*|\s+(?:feat\.?|ft\.?|with|x|vs\.?)\s+/i)[0]
@@ -827,7 +837,36 @@ app.get('/api/lyrics', async (req, res) => {
       }
       if (!synced && !plain && ovh) {
         plain = ovh;
-        source = 'lyrics.ovh';
+        source = source || 'lyrics.ovh';
+      }
+    }
+
+    // 4) last-ditch: retry the whole LRCLIB+NetEase pass with alternate title variants
+    //    (stripped parens, "Artist - Title" halves) — picks up covers/odd uploads
+    if (!synced && !plain) {
+      for (const tV of lyricTitleVariants(title)) {
+        if (tV === tUse) continue;
+        const [fs, ne2, tx2] = await Promise.all([
+          lrclibSearch({ track_name: tV, artist_name: aUse }),
+          neteaseLyrics(tV, aUse),
+          textylLyrics(tV, aUse),
+        ]);
+        const best = pickBest(fs || [], tV, aUse, duration);
+        if (best && (best.syncedLyrics || best.plainLyrics)) {
+          synced = best.syncedLyrics || null;
+          plain = plain || best.plainLyrics || null;
+          source = synced ? 'LRCLIB' : (source || 'LRCLIB');
+        }
+        if (!synced && ne2 && ne2.synced) {
+          synced = ne2.synced; plain = plain || ne2.plain; source = 'NetEase';
+        }
+        if (!synced && tx2) {
+          synced = tx2; source = 'Textyl';
+        }
+        if (!synced && !plain && ne2 && ne2.plain) {
+          plain = ne2.plain; source = source || 'NetEase';
+        }
+        if (synced) break;
       }
     }
 
