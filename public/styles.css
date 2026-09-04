@@ -112,7 +112,7 @@ a { color: inherit; }
 .splash-name {
   margin-top: 18px;
   font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
-  font-size: 34px; font-weight: 800; letter-spacing: 0.01em;
+  font-size: 46px; font-weight: 800; letter-spacing: 0.01em;
   color: #fff;
   animation: splashName 0.8s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -172,7 +172,7 @@ a { color: inherit; }
   font-weight: 800; font-size: 19px; padding: 8px 12px 16px;
   letter-spacing: -0.04em;
 }
-.logo > span { font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif; font-size: 21px; letter-spacing: 0.02em; }
+.logo > span { font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif; font-size: 25px; letter-spacing: 0.02em; }
 .logo-img {
   width: 34px;
   height: 34px;
@@ -781,11 +781,11 @@ body:not(.paused) .np-art-wrap { transform: scale(1.01); }
   src: url('fonts/tastebread.otf') format('opentype');
   font-display: swap;
 }
-.lyric-line, .lyric-plain, .lyrics-empty, #np-lyric-preview, .float-lyric {
+.lyric-line, .lyric-plain, .lyrics-empty, #np-lyric-preview, #fw-lyric {
   font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
 }
 .lyric-line {
-  font-size: clamp(20px, 3.2vw, 28px); font-weight: 800;
+  font-size: clamp(26px, 4.6vw, 40px); font-weight: 800;
   color: rgba(255, 255, 255, 0.32); padding: 9px 4px; cursor: pointer;
   transition: color .45s cubic-bezier(.22,1,.36,1), transform .45s cubic-bezier(.22,1,.36,1),
     opacity .45s cubic-bezier(.22,1,.36,1), filter .45s cubic-bezier(.22,1,.36,1), text-shadow .45s;
@@ -806,7 +806,7 @@ body:not(.paused) .np-art-wrap { transform: scale(1.01); }
 }
 .lyric-line.past { color: rgba(255, 255, 255, 0.58); opacity: .82; }
 .lyric-plain {
-  font-size: 17px; line-height: 1.9; color: rgba(255,255,255,.92);
+  font-size: 21px; line-height: 1.85; color: rgba(255,255,255,.92);
   white-space: pre-wrap; font-weight: 500;
   text-shadow: 0 1px 10px rgba(0,0,0,.55);
 }
@@ -1267,7 +1267,7 @@ body.hq-audio #yt-player {
   .detail-head { padding: 48px 16px 20px; margin: -18px -16px 8px; }
   .detail-head img { width: 150px; height: 150px; }
   #toast { bottom: calc(var(--navm-h) + 92px); }
-  .lyric-line { font-size: 22px; }
+  .lyric-line { font-size: 30px; }
 
   /* Track rows: ⋮ only — titles get the width */
   .track { gap: 10px; padding: 8px 6px; }
