@@ -2498,6 +2498,8 @@ function openNowPlayingMore() {
     ${row('share', 'i-share', 'Share')}
     ${row('artist', 'i-search', 'Go to artist')}
     ${row('speed', 'i-clock', `Speed · ${Player.speed}×`)}
+    ${row('eq', 'i-eq', 'Equalizer')}
+    ${row('viz', 'i-wave', Player.vizOn ? 'Visualizer on' : 'Visualizer')}
     ${row('float', 'i-pip', Player.floatOn ? 'Widget on' : 'Widget')}
     ${row('quality', 'i-expand', Player.hq ? 'Quality · Max' : 'Quality · YouTube Music')}
     ${row('sb', 'i-next', Player.sbEnabled ? 'SponsorBlock on' : 'SponsorBlock')}`;
@@ -2507,6 +2509,8 @@ function openNowPlayingMore() {
     else if (a === 'share') shareSong(song);
     else if (a === 'artist') goToArtist(song);
     else if (a === 'speed') cycleSpeed();
+    else if (a === 'eq') openEqualizer();
+    else if (a === 'viz') toggleVisualizer();
     else if (a === 'float') toggleFloatWidget();
     else if (a === 'quality') toggleQuality();
     else if (a === 'sb') toggleSB();
