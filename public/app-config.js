@@ -43,8 +43,12 @@ function rmUpdate(cfg) {
   const rel = cfg.release;
   if (!rel || !rel.url) return;
   const native = window.RichMusicBridge;
-  if (native && native.appVersion) {
-    if (Number(native.appVersion()) >= Number(rel.versionCode)) return;
+  if (native) {
+    // old bridges (≤v29) lack appVersion() → treat as 0 so they still get the prompt
+    let v = 0;
+    try { v = Number(native.appVersion()); } catch {}
+    if (!(v >= 0)) v = 0;
+    if (v >= Number(rel.versionCode)) return;
     if (RM_CFG.busy || (RM_CFG.deferred && Date.now() - RM_CFG.deferred < 12 * 3600 * 1000)) return;
     RM_CFG.busy = true;
     rmUpdateModal(rel.versionName, () => {
