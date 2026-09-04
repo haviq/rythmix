@@ -727,6 +727,24 @@ html[data-theme="light"] .np-tab.active { background: #fff; color: #111; }
 }
 body:not(.paused) .np-art-wrap { transform: scale(1.01); }
 #np-art { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; background: var(--elevated); }
+
+/* v1.1: equalizer modal + visualizer bars */
+.eq-wrap { display: flex; justify-content: center; gap: 14px; padding: 18px 0 8px; }
+.eq-band { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.eq-range { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 150px; accent-color: var(--accent); }
+.eq-name { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#np-vizbars {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 46%; display: flex; align-items: flex-end; gap: 3px;
+  padding: 0 6px 6px; border-radius: 0 0 12px 12px; overflow: hidden;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.45));
+  pointer-events: none;
+}
+#np-vizbars i {
+  flex: 1; min-height: 4%; height: 8%; border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, #ffd54a, #f5b301);
+  transition: height .08s linear;
+}
 .np-meta { text-align: center; width: 100%; }
 #np-title { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; color: #fff; }
 #np-artist { font-size: 15px; color: rgba(255,255,255,.72); margin-top: 5px; font-weight: 500; }

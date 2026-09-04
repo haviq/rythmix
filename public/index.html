@@ -51,6 +51,8 @@ try {
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15.5 19.1 8.4 12l7.1-7.1 1.4 1.4L11.2 12l5.7 5.7z"/></symbol>
   <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M8.5 4.9 15.6 12l-7.1 7.1-1.4-1.4L12.8 12 7.1 6.3z"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 1.8a8.2 8.2 0 1 1 0 16.4 8.2 8.2 0 0 1 0-16.4zM11.1 6v6.5l4.7 2.8.9-1.5-3.8-2.3V6h-1.8z"/></symbol>
+  <symbol id="i-eq" viewBox="0 0 24 24"><path d="M6 3v8.1a3.5 3.5 0 0 0 0 6.8V21h2v-3.1a3.5 3.5 0 0 0 0-6.8V3H6zm10 0v1.1a3.5 3.5 0 0 0 0 6.8V21h2V10.9a3.5 3.5 0 0 0 0-6.8V3h-2zM7 13a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm10-7a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 10h2v4H3v-4zm4-4h2v12H7V6zm4-3h2v18h-2V3zm4 5h2v8h-2V8zm4 3h2v2h-2v-2z"/></symbol>
   <symbol id="i-radio" viewBox="0 0 24 24"><path d="M12 9.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM7.6 7.6 6.3 6.3a8 8 0 0 0 0 11.4l1.3-1.3a6.2 6.2 0 0 1 0-8.8zm8.8 0a6.2 6.2 0 0 1 0 8.8l1.3 1.3a8 8 0 0 0 0-11.4l-1.3 1.3zM4.9 4.9 3.6 3.6a11.8 11.8 0 0 0 0 16.8l1.3-1.3a10 10 0 0 1 0-14.2zm14.2 0a10 10 0 0 1 0 14.2l1.3 1.3a11.8 11.8 0 0 0 0-16.8l-1.3 1.3z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M9 3h6v2h5v2H4V5h5V3zM6 8h12l-.9 13H6.9L6 8zm4 2 .3 9h1.5l-.3-9H10zm4 0-.3 9h1.5l.3-9H14z"/></symbol>
@@ -175,7 +177,7 @@ try {
       </div>
       <div class="np-body">
         <section id="np-player" class="np-pane active">
-          <div class="np-art-wrap"><img id="np-art" alt="" /></div>
+          <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" /></div>
           <div class="np-meta">
             <div id="np-title">—</div>
             <div id="np-artist">—</div>
@@ -201,6 +203,8 @@ try {
             <button id="np-download" class="pill-btn np-extra" title="Download"><svg class="ic"><use href="#i-download"/></svg><span>Download</span></button>
             <button id="np-share" class="pill-btn np-extra" title="Share"><svg class="ic"><use href="#i-share"/></svg><span>Share</span></button>
             <button id="np-speed" class="pill-btn np-extra" title="Playback speed"><svg class="ic"><use href="#i-clock"/></svg><span>1×</span></button>
+            <button id="np-eq" class="pill-btn np-extra" title="Equalizer"><svg class="ic"><use href="#i-eq"/></svg><span>EQ</span></button>
+            <button id="np-viz" class="pill-btn np-extra" title="Visualizer"><svg class="ic"><use href="#i-wave"/></svg><span>Viz</span></button>
             <button id="np-float" class="pill-btn np-extra" title="Floating widget"><svg class="ic"><use href="#i-pip"/></svg><span>Widget</span></button>
             <button id="np-quality" class="pill-btn np-extra" title="YouTube Music audio — tap for YouTube max quality"><span>Quality</span></button>
             <button id="np-sb" class="pill-btn np-extra" title="SponsorBlock auto-skip"><svg class="ic"><use href="#i-next"/></svg><span>SB</span></button>

@@ -2118,6 +2118,7 @@ function viewLibrary(view, tab) {
     const pls = Library.playlists;
     body = `<div class="lib-actions">
         <button class="pill-btn primary" id="btn-newpl">${icon('i-plus')}<span>New playlist</span></button>
+        <button class="pill-btn" id="btn-local">${icon('i-play')}<span>Play file lokal</span></button>
         <button class="pill-btn" id="btn-import">${icon('i-download')}<span>Import from YT</span></button>
         <button class="pill-btn" id="btn-backup">${icon('i-download')}<span>Backup</span></button>
         <button class="pill-btn" id="btn-restore">${icon('i-upload')}<span>Restore</span></button>
@@ -2132,6 +2133,8 @@ function viewLibrary(view, tab) {
   bindItems(view);
   const np = $('#btn-newpl');
   if (np) np.addEventListener('click', openCreatePlaylist);
+  const lf = $('#btn-local');
+  if (lf) lf.addEventListener('click', openLocalFileDialog);
   const im = $('#btn-import');
   if (im) im.addEventListener('click', openImportForm);
   const bk = $('#btn-backup');
@@ -2916,6 +2919,87 @@ $('#np-repeat').addEventListener('click', function () {
   toast(['Repeat off', 'Repeat all', 'Repeat one'][Player.repeat]);
 });
 $('#np-speed').addEventListener('click', cycleSpeed);
+
+/* ================= Equalizer + Visualizer + Local file (v1.1) ================= */
+function openEqualizer() {
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.eqBands) { toast('Equalizer hanya di aplikasi Android'); return; }
+  const modal = $('#modal');
+  const body = $('#modal-body');
+  $('#modal-title').textContent = 'Equalizer';
+  $('.modal-actions')?.classList.add('hidden');
+  let data;
+  try { data = JSON.parse(window.RichMusicBridge.eqBands()); } catch (e) { data = null; }
+  if (!data || !data.bands || !data.bands.length) { toast('Equalizer tidak tersedia di perangkat ini'); return; }
+  const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
+  body.innerHTML = `<div class="pl-form-hint">Geser untuk menyetel. Nilai ${data.min}..${data.max}</div>
+    <div class="eq-wrap" id="eq-wrap">
+      ${data.bands.map((b, i) => `
+        <div class="eq-band">
+          <input type="range" min="${b.lo}" max="${b.hi}" value="${b.cur}" data-i="${i}" orient="vertical" class="eq-range"/>
+          <span class="eq-name">${names[i] || i}</span>
+        </div>`).join('')}
+    </div>
+    <div class="pl-form-actions">
+      <button type="button" class="pill-btn" id="eq-reset">Reset</button>
+      <button type="button" class="pill-btn primary" id="eq-done">Done</button>
+    </div>`;
+  body.querySelectorAll('.eq-range').forEach((r) => r.addEventListener('input', () => {
+    window.RichMusicBridge.setEqBand(Number(r.dataset.i), Number(r.value));
+  }));
+  $('#eq-reset').addEventListener('click', () => {
+    body.querySelectorAll('.eq-range').forEach((r) => { r.value = 0; window.RichMusicBridge.setEqBand(Number(r.dataset.i), 0); });
+  });
+  $('#eq-done').addEventListener('click', closeModal);
+  modal.classList.remove('hidden');
+}
+function toggleVisualizer() {
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) { toast('Visualizer hanya di aplikasi Android'); return; }
+  Player.vizOn = !Player.vizOn;
+  window.RichMusicBridge.vizOn(Player.vizOn);
+  $('#np-viz').classList.toggle('on', Player.vizOn);
+  let viz = $('#np-vizbars');
+  if (Player.vizOn && !viz) {
+    viz = document.createElement('div');
+    viz.id = 'np-vizbars';
+    for (let i = 0; i < 24; i++) viz.appendChild(document.createElement('i'));
+    $('#np-art-wrap').appendChild(viz);
+  } else if (!Player.vizOn && viz) viz.remove();
+  toast(Player.vizOn ? 'Visualizer on' : 'Visualizer off');
+}
+window.__rmWave = function(bars) {
+  const viz = $('#np-vizbars');
+  if (!viz || !Player.vizOn) return;
+  for (let i = 0; i < 24; i++) {
+    const el = viz.children[i];
+    if (el) el.style.height = Math.max(4, Math.min(64, 32 + bars[i] / 2)) + '%';
+  }
+};
+/* local file playback (MP4/MP3/M4A) — Library page */
+function openLocalFileDialog(name) {
+  const modal = $('#modal');
+  const body = $('#modal-body');
+  $('#modal-title').textContent = 'Play file lokal';
+  $('.modal-actions')?.classList.add('hidden');
+  body.innerHTML = `<div class="pl-form-hint">Masukkan path lengkap file di penyimpanan, atau URL langsung (http/https) ke MP4/MP3.</div>
+    <input id="lf-path" class="pl-form-input" type="text" placeholder="/storage/emulated/0/Music/lagu.mp4 atau https://…" />
+    <div class="pl-form-actions">
+      <button type="button" class="pill-btn" id="lf-cancel">Batal</button>
+      <button type="button" class="pill-btn primary" id="lf-play">Play</button>
+    </div>`;
+  $('#lf-cancel').addEventListener('click', closeModal);
+  $('#lf-play').addEventListener('click', () => {
+    const p = $('#lf-path').value.trim();
+    if (!p) return;
+    const name2 = p.split('/').pop() || 'Lokal';
+    window.RichMusicBridge.playFile(p, name2, 'Local file');
+    closeModal();
+    toast('Memutar ' + name2);
+  });
+  modal.classList.remove('hidden');
+  setTimeout(() => $('#lf-path') && $('#lf-path').focus(), 50);
+}
+$('#np-eq').addEventListener('click', openEqualizer);
+$('#np-viz').addEventListener('click', toggleVisualizer);
 $('#np-float').addEventListener('click', toggleFloatWidget);
 $('#mini-float').addEventListener('click', (e) => { e.stopPropagation(); toggleFloatWidget(); });
 $('#np-quality').addEventListener('click', toggleQuality);
