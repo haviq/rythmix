@@ -591,8 +591,10 @@ function startCurrent() {
     navigator.mediaSession.setActionHandler('pause', () => Player.yt && Player.yt.pauseVideo());
   }
   if (window.__nativeMode) {
-    // native: dur still 0 here — fetching now risks wrong-song match. Show placeholder,
-    // real fetch fires via maybeRetryLyrics once PLAYING + duration known (~1s).
+    // v4.0.2: fetch immediately with duration=0 (LRCLIB exact-0 fallback works);
+    // maybeRetryLyrics re-fetches with the real duration once PLAYING. Waiting for
+    // PLAYING before any fetch made lyrics lag the song by seconds.
+    loadLyrics(s);
     $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
     $('#lyrics-source').textContent = '';
     $('#np-lyric-preview').textContent = '';
@@ -765,8 +767,14 @@ function renderPlayButtons() {
 async function loadSponsorBlock(videoId) {
   Player.sbSegments = [];
   Player.sbSkipped = 0;
+  // v4.0.2: guard against stale response — segments fetched for a PREVIOUS song
+  // arriving late were being applied to the new song → bogus mid-song seeks
+  // (looked like repeated pause/resume). Drop if the user moved on.
+  const myVid = videoId;
   try {
     const d = await api(`/api/sponsorblock?videoId=${encodeURIComponent(videoId)}`);
+    const cur = Player.current;
+    if (!cur || cur.videoId !== myVid) return;
     Player.sbSegments = d.segments || [];
     if (Player.sbSegments.length && Player.sbEnabled) toast(`SponsorBlock: ${Player.sbSegments.length} segment(s) will be skipped`);
   } catch {}
