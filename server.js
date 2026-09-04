@@ -907,6 +907,14 @@ app.get('/api/thumb', async (req, res) => {
   }
 });
 
+// ---- App config: OTA update + maintenance banner (single source of truth) ----
+// ponytail: JSON file beats admin panel/env vars. Bump release.versionCode + set
+// release.url, flip maintenance.enabled on the VPS with plain SFTP edit.
+const APP_CONFIG = path.join(__dirname, 'app-config.json');
+app.get('/api/app-config', (req, res) => {
+  try { res.json(require(APP_CONFIG)); } catch { res.json({}); }
+});
+
 app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;

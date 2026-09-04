@@ -1,0 +1,12 @@
+{
+  "release": {
+    "versionCode": 29,
+    "versionName": "4.0.2",
+    "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
+    "notes": ""
+  },
+  "maintenance": {
+    "enabled": false,
+    "message": "Rythmix sedang maintenance. Coba lagi sebentar ya."
+  }
+}
