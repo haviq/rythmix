@@ -1777,6 +1777,7 @@ module_dependencies {
   dependency_index: 50
   dependency_index: 80
   dependency_index: 89
+  dependency_index: 90
   dependency_index: 91
   dependency_index: 92
 }

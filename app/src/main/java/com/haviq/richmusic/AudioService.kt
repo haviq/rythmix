@@ -30,10 +30,14 @@ import androidx.media3.session.MediaSession
 class AudioService : Service() {
 
     companion object {
-        const val ACTION_PLAY_PAUSE = "com.haviq.richmusic.PLAY_PAUSE"
-        const val ACTION_STOP = "com.haviq.richmusic.STOP"
-        const val CHANNEL_ID = "rich_music_playback"
-        const val NOTIF_ID = 1
+    const val ACTION_PLAY_PAUSE = "com.haviq.richmusic.PLAY_PAUSE"
+    const val ACTION_NEXT = "com.haviq.richmusic.NEXT"
+    const val ACTION_PREV = "com.haviq.richmusic.PREV"
+    const val ACTION_STOP = "com.haviq.richmusic.STOP"
+    const val ACTION_UI = "com.haviq.richmusic.UI_CMD" // broadcast → UI webview (loop/shuffle)
+    const val EXTRA_CMD = "cmd"
+    const val CHANNEL_ID = "rich_music_playback"
+    const val NOTIF_ID = 1
 
         var player: ExoPlayer? = null
             private set
@@ -43,6 +47,7 @@ class AudioService : Service() {
         var onTick: ((state: Int, posSec: Long, durSec: Long) -> Unit)? = null
         var onEnded: (() -> Unit)? = null
         var onError: ((String) -> Unit)? = null
+        var onUiCommand: ((String) -> Unit)? = null
 
         @Volatile var playGen = 0
         @Volatile var mediaGen = 0
@@ -242,9 +247,20 @@ class AudioService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PLAY_PAUSE -> togglePlayPause()
+            ACTION_NEXT -> pushUi("next")
+            ACTION_PREV -> pushUi("prev")
+            ACTION_UI -> pushUi(intent?.getStringExtra(EXTRA_CMD) ?: "")
             ACTION_STOP -> stopSelf()
         }
         return START_STICKY
+    }
+
+    /** notification control → UI webview (app.js owns queue/loop/shuffle logic).
+     *  AudioService has no UI handle → MainActivity registers itself; service broadcasts via callback. */
+    private fun pushUi(cmd: String) {
+        if (cmd.isEmpty()) return
+        val js = "window.__rmNotifCmd && window.__rmNotifCmd('${cmd.replace("'", "\\'")}')"
+        onUiCommand?.invoke(js)
     }
 
     override fun onDestroy() {
@@ -285,14 +301,13 @@ class AudioService : Service() {
     }
 
     private fun buildNotification(title: String, text: String): Notification {
-        val playPauseIntent = PendingIntent.getService(
-            this, 0, Intent(this, AudioService::class.java).setAction(ACTION_PLAY_PAUSE),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val stopIntent = PendingIntent.getService(
-            this, 1, Intent(this, AudioService::class.java).setAction(ACTION_STOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        fun pi(action: String, code: Int): PendingIntent =
+            PendingIntent.getService(this, code, Intent(this, AudioService::class.java).setAction(action),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val playPauseIntent = pi(ACTION_PLAY_PAUSE, 0)
+        val nextIntent = pi(ACTION_NEXT, 3)
+        val prevIntent = pi(ACTION_PREV, 4)
+        val stopIntent = pi(ACTION_STOP, 1)
         val contentIntent = PendingIntent.getActivity(
             this, 2, Intent(this, MainActivity::class.java).setFlags(
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT
@@ -301,21 +316,41 @@ class AudioService : Service() {
         )
         val isPlaying = player?.isPlaying == true
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            // order: prev | play/pause | next | close (MediaStyle shows 3 + close in compact)
+            .addAction(android.R.drawable.ic_media_previous, "Previous", prevIntent)
             .addAction(
                 if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
                 if (isPlaying) "Pause" else "Play",
                 playPauseIntent
             )
+            .addAction(android.R.drawable.ic_media_next, "Next", nextIntent)
+            .addAction(android.R.drawable.ic_menu_rotate, "Loop",
+                PendingIntent.getService(this, 5,
+                    Intent(this, AudioService::class.java).setAction(ACTION_UI).putExtra(EXTRA_CMD, "loop"),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            .addAction(android.R.drawable.ic_menu_sort_by_size, "Shuffle",
+                PendingIntent.getService(this, 6,
+                    Intent(this, AudioService::class.java).setAction(ACTION_UI).putExtra(EXTRA_CMD, "shuffle"),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
-            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .build()
+
+        // MediaStyle → artwork slot + compact view shows prev/play/next
+        if (player != null && session != null) {
+            val style = androidx.media.app.NotificationCompat.MediaStyle()
+                .setMediaSession(session!!.sessionCompatToken)
+                .setShowActionsInCompactView(0, 1, 2)
+            builder.setStyle(style)
+        }
+        return builder.build()
     }
 
     private fun createChannel() {

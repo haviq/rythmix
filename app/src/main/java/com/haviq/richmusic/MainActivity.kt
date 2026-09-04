@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
             AudioService.onError = { msg ->
                 pushToJs("window.__rmOnError && window.__rmOnError(${jsQuote(msg)})")
             }
+            AudioService.onUiCommand = { js -> pushToJs(js) }
             startProgressTicker()
         }
 
@@ -301,6 +302,7 @@ class MainActivity : AppCompatActivity() {
                                 androidx.media3.common.MediaMetadata.Builder()
                                     .setTitle(info.title)
                                     .setArtist(info.artist)
+                                    .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
                                     .build()
                             )
                             .build(),
@@ -367,6 +369,7 @@ class MainActivity : AppCompatActivity() {
                                 androidx.media3.common.MediaMetadata.Builder()
                                     .setTitle(info.title)
                                     .setArtist(info.artist)
+                                    .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
                                     .build()
                             )
                             .build(),

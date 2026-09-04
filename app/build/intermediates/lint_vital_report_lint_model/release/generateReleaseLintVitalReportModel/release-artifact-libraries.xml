@@ -208,6 +208,19 @@
       externalAnnotations="annotations.zip"
       proguardRules="proguard.txt"/>
   <library
+      name="androidx.media:media:1.7.0@aar"
+      jars="/opt/data/.gradle/caches/8.14.3/transforms/ccde877ecbcc0ced680c290cb72c10a7/transformed/media-1.7.0/jars/classes.jar"
+      resolved="androidx.media:media:1.7.0"
+      folder="/opt/data/.gradle/caches/8.14.3/transforms/ccde877ecbcc0ced680c290cb72c10a7/transformed/media-1.7.0"
+      manifest="AndroidManifest.xml"
+      resFolder="res"
+      assetsFolder="assets"
+      lintJar="lint.jar"
+      publicResources="public.txt"
+      symbolFile="R.txt"
+      externalAnnotations="annotations.zip"
+      proguardRules="proguard.txt"/>
+  <library
       name="androidx.browser:browser:1.8.0@aar"
       jars="/opt/data/.gradle/caches/8.14.3/transforms/265738442d8ca41df1345d930645112b/transformed/browser-1.8.0/jars/classes.jar"
       resolved="androidx.browser:browser:1.8.0"
@@ -713,19 +726,6 @@
       jars="/opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/jars/classes.jar:/opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0/jars/libs/repackaged.jar"
       resolved="androidx.emoji2:emoji2:1.3.0"
       folder="/opt/data/.gradle/caches/8.14.3/transforms/7d5de5b98ad4fb18bd726633e2582cd3/transformed/emoji2-1.3.0"
-      manifest="AndroidManifest.xml"
-      resFolder="res"
-      assetsFolder="assets"
-      lintJar="lint.jar"
-      publicResources="public.txt"
-      symbolFile="R.txt"
-      externalAnnotations="annotations.zip"
-      proguardRules="proguard.txt"/>
-  <library
-      name="androidx.media:media:1.7.0@aar"
-      jars="/opt/data/.gradle/caches/8.14.3/transforms/ccde877ecbcc0ced680c290cb72c10a7/transformed/media-1.7.0/jars/classes.jar"
-      resolved="androidx.media:media:1.7.0"
-      folder="/opt/data/.gradle/caches/8.14.3/transforms/ccde877ecbcc0ced680c290cb72c10a7/transformed/media-1.7.0"
       manifest="AndroidManifest.xml"
       resFolder="res"
       assetsFolder="assets"
