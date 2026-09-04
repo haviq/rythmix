@@ -681,6 +681,15 @@ function prevTrack() {
   if (Player.index > 0) { Player.index--; startCurrent(); }
   else if (Player.yt) Player.yt.seekTo(0);
 }
+// notification/broadcast controls from native (prev/next/loop/shuffle)
+window.__rmNotifCmd = function(cmd) {
+  try {
+    if (cmd === 'next') nextTrack(false);
+    else if (cmd === 'prev') prevTrack();
+    else if (cmd === 'loop') { Player.repeat = ((Player.repeat || 0) + 1) % 3; toast('Repeat: ' + ['off','all','one'][Player.repeat]); }
+    else if (cmd === 'shuffle') { Player.shuffle = !Player.shuffle; toast('Shuffle ' + (Player.shuffle ? 'on' : 'off')); }
+  } catch (e) {}
+};
 function togglePlay() {
   if (!Player.current) return;
   if (Player.cued) {
