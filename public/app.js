@@ -2570,12 +2570,19 @@ async function shareSong(song) {
     toast(url);
   }
 }
+function syncSleepLabel() {
+  const b = $('#np-sleep');
+  if (!b) return;
+  const on = !!Player.sleepEndsAt;
+  b.classList.toggle('on', on);
+  const cap = $('.np-caption');
+  if (cap) cap.textContent = on ? `Sleeping in ${Math.ceil((Player.sleepEndsAt - Date.now()) / 60000)} min` : 'Now Playing';
+}
 function openSleepTimer() {
   const modal = $('#modal');
   const body = $('#modal-body');
   const actions = $('.modal-actions');
   $('#modal-title').textContent = 'Sleep timer';
-  if (actions) actions.classList.add('hidden');
   const active = !!Player.sleepTimer;
   body.innerHTML = `<form class="pl-form" id="sl-form">
       <div class="pl-form-cover" aria-hidden="true">${icon('i-clock')}</div>
@@ -2593,18 +2600,38 @@ function openSleepTimer() {
   const input = $('#sl-mins');
   const start = (m) => {
     clearTimeout(Player.sleepTimer);
+    clearInterval(Player.sleepCountdown);
     Player.sleepTimer = null;
-    $('#np-sleep') && $('#np-sleep').classList.remove('on');
+    Player.sleepEndsAt = null;
+    syncSleepLabel();
     if (m > 0) {
+      Player.sleepEndsAt = Date.now() + m * 60000;
+      Player.sleepCountdown = setInterval(syncSleepLabel, 1000);
       Player.sleepTimer = setTimeout(() => {
-        Player.yt && Player.yt.pauseVideo();
+        clearInterval(Player.sleepCountdown);
         Player.sleepTimer = null;
-        $('#np-sleep') && $('#np-sleep').classList.remove('on');
-        toast('Sleep timer: paused');
+        Player.sleepEndsAt = null;
+        // fade out 4s then pause (works native via bridge setVolume/pause)
+        const t0 = Date.now();
+        const iv = setInterval(() => {
+          const k = 1 - (Date.now() - t0) / 4000;
+          if (k <= 0) {
+            clearInterval(iv);
+            if (window.__nativeMode && window.RichMusicBridge) { window.RichMusicBridge.setVolume(1); window.RichMusicBridge.pause(); }
+            else if (Player.yt) { try { Player.yt.setVolume(100); } catch (e) {} Player.yt.pauseVideo(); }
+            syncSleepLabel();
+            toast('Sleep timer: paused');
+          } else {
+            const vol = Math.round(k * 100);
+            if (window.__nativeMode && window.RichMusicBridge) window.RichMusicBridge.setVolume(vol);
+            else if (Player.yt) { try { Player.yt.setVolume(vol); } catch (e) {} }
+          }
+        }, 250);
+        syncSleepLabel();
       }, m * 60000);
-      $('#np-sleep') && $('#np-sleep').classList.add('on');
       toast(`Sleeping in ${m} min`);
     } else toast('Sleep timer cancelled');
+    syncSleepLabel();
     closeModal();
   };
   $$('#sl-presets .chip').forEach((c) => c.addEventListener('click', () => start(Number(c.dataset.m))));

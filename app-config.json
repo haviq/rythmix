@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 35,
-    "versionName": "4.2.1",
+    "versionCode": 36,
+    "versionName": "1.0",
     "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
-    "notes": ""
+    "notes": "Sleep timer upgrade: fade out + countdown"
   },
   "maintenance": {
     "enabled": false,
