@@ -2933,13 +2933,20 @@ function openEqualizer() {
   $('.modal-actions')?.classList.add('hidden');
   let data;
   try { data = JSON.parse(window.RichMusicBridge.eqBands()); } catch (e) { data = null; }
-  if (!data || !data.bands || !data.bands.length) { toast('Equalizer tidak tersedia di perangkat ini'); return; }
+  if (!data || !data.bands || !data.bands.length) {
+    // EQ object not ready yet (track not started) — show placeholder, not a dead modal
+    body.innerHTML = `<div class="pl-form-hint">Equalizer siap setelah lagu mulai diputar. Play lagu dulu, lalu buka EQ lagi.</div>
+      <div class="pl-form-actions"><button type="button" class="pill-btn primary" id="eq-done">OK</button></div>`;
+    $('#eq-done').addEventListener('click', closeModal);
+    modal.classList.remove('hidden');
+    return;
+  }
   const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
   body.innerHTML = `<div class="pl-form-hint">Geser untuk menyetel. Nilai ${data.min}..${data.max}</div>
     <div class="eq-wrap" id="eq-wrap">
       ${data.bands.map((b, i) => `
         <div class="eq-band">
-          <input type="range" min="${b.lo}" max="${b.hi}" value="${b.cur}" data-i="${i}" orient="vertical" class="eq-range"/>
+          <input type="range" min="${b.lo}" max="${b.hi}" value="${b.cur}" data-i="${i}" class="eq-range"/>
           <span class="eq-name">${names[i] || i}</span>
         </div>`).join('')}
     </div>
@@ -2947,9 +2954,11 @@ function openEqualizer() {
       <button type="button" class="pill-btn" id="eq-reset">Reset</button>
       <button type="button" class="pill-btn primary" id="eq-done">Done</button>
     </div>`;
-  body.querySelectorAll('.eq-range').forEach((r) => r.addEventListener('input', () => {
-    window.RichMusicBridge.setEqBand(Number(r.dataset.i), Number(r.value));
-  }));
+  body.querySelectorAll('.eq-range').forEach((r) => {
+    const apply = () => window.RichMusicBridge.setEqBand(Number(r.dataset.i), Number(r.value));
+    r.addEventListener('input', apply);
+    r.addEventListener('touchend', apply); // WebView slider reliability
+  });
   $('#eq-reset').addEventListener('click', () => {
     body.querySelectorAll('.eq-range').forEach((r) => { r.value = 0; window.RichMusicBridge.setEqBand(Number(r.dataset.i), 0); });
   });
