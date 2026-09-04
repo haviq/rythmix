@@ -1,5 +1,6 @@
 /* Rythmix Music - backend proxy for YouTube Music InnerTube API + LRCLIB lyrics */
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
@@ -910,9 +911,10 @@ app.get('/api/thumb', async (req, res) => {
 // ---- App config: OTA update + maintenance banner (single source of truth) ----
 // ponytail: JSON file beats admin panel/env vars. Bump release.versionCode + set
 // release.url, flip maintenance.enabled on the VPS with plain SFTP edit.
+// readFileSync (not require) — require caches, edits wouldn't apply until restart.
 const APP_CONFIG = path.join(__dirname, 'app-config.json');
 app.get('/api/app-config', (req, res) => {
-  try { res.json(require(APP_CONFIG)); } catch { res.json({}); }
+  try { res.json(JSON.parse(fs.readFileSync(APP_CONFIG, 'utf8'))); } catch { res.json({}); }
 });
 
 app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
