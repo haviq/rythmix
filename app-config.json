@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 40,
-    "versionName": "1.4",
+    "versionCode": 41,
+    "versionName": "1.4.1",
     "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
-    "notes": "v1.4: EQ slider vertikal fix, visualizer retry, mode Video, download multi-format (mp3/m4a/webm/opus/flac/wav/mp4)"
+    "notes": "v1.4.1: FIX video mode blank hitam (TextureView), equalizer sekarang aktif, visualizer retry izin mic + lebih responsif, notifikasi baru: artwork + tombol prev/next/play/pause"
   },
   "maintenance": {
     "enabled": false,
