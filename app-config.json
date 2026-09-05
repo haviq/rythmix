@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 43,
-    "versionName": "1.6",
-    "url": "https://github.com/haviq/rythmix/releases/download/v1.6/rythmix.apk",
-    "notes": "v1.6: FIX mode video (muxed+adaptive DASH), FIX visualizer & equalizer (mic callback attach), SponsorBlock default OFF"
+    "versionCode": 44,
+    "versionName": "1.7",
+    "url": "https://github.com/haviq/rythmix/releases/download/v1.7/rythmix.apk",
+    "notes": "v1.7: FIX video selalu gagal (fallback player YouTube resmi fullscreen), FIX equalizer & visualizer hilang (auto re-attach audio session), FIX posisi bars visualizer"
   },
   "maintenance": {
     "enabled": false,
