@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 48,
-    "versionName": "2.1",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.1/rythmix.apk",
-    "notes": "v2.1: FIX tombol Play/Pause notifikasi saat mode video (ikut engine), ikon statusbar dibetulkan"
+    "versionCode": 49,
+    "versionName": "2.2",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.2/rythmix.apk",
+    "notes": "v2.2: FIX judul notif mode video, recent search rapi, lirik sync engine, caption fallback + cari-manual lirik"
   },
   "maintenance": {
     "enabled": false,
