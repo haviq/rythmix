@@ -125,9 +125,8 @@ class MainActivity : AppCompatActivity() {
         ))
         uiWebView = wv
 
-        // v1.4 video mode: PlayerView overlay on top of WebView, hidden until JS asks
-        val pv = androidx.media3.ui.PlayerView(this)
-        pv.useController = false
+        // v1.4.1: inflate from XML — surface_type=texture_view (SurfaceView loses Z-order to WebView → black)
+        val pv = layoutInflater.inflate(R.layout.player_view, webViewContainer, false) as androidx.media3.ui.PlayerView
         pv.visibility = android.view.View.GONE
         pv.setBackgroundColor(0xFF000000.toInt())
         webViewContainer.addView(pv, FrameLayout.LayoutParams(
@@ -495,6 +494,13 @@ class MainActivity : AppCompatActivity() {
             } else null
         }
         @JavascriptInterface fun vizReady(): Boolean = try { AudioService.viz?.enabled == true } catch (_: Exception) { false }
+        /** v1.4.1: JS asks to (re)prompt the Mic permission — viz needs it on Android 6+. */
+        @JavascriptInterface fun requestMic() {
+            if (Build.VERSION.SDK_INT >= 23 &&
+                checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread { requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 4242) }
+            }
+        }
 
         // ---- Video mode (v1.4) ----
         @JavascriptInterface fun setVideoMode(on: Boolean) {
@@ -533,8 +539,13 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
+                    // v1.4.1: show surface only AFTER resolve succeeded — no black hole on failure
+                    setVideoModeUi(true)
                 } catch (e: Exception) {
-                    AudioService.onError?.invoke(e.message ?: "video failed")
+                    setVideoModeUi(false)
+                    pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
+                    play(videoId, title, artist, startSeconds) // fallback: audio-only
+                    AudioService.onError?.invoke("Video gak tersedia — lanjut audio")
                 }
             }
         }

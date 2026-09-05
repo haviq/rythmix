@@ -78,6 +78,8 @@ class AudioService : Service() {
                 androidx.core.content.ContextCompat.checkSelfPermission(svc, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             try {
                 if (eq == null) eq = android.media.audiofx.Equalizer(0, sessionId)
+                // v1.4.1: Equalizer created DISABLED — band levels do nothing until enabled
+                eq?.let { if (!it.enabled) it.enabled = true }
             } catch (_: Exception) {}
             try {
                 if (viz == null && recGranted) {
@@ -90,10 +92,11 @@ class AudioService : Service() {
                             }
                             override fun onFftDataCapture(v: android.media.audiofx.Visualizer?, fft: ByteArray?, sampling: Int) {}
                         },
-                        android.media.audiofx.Visualizer.getMaxCaptureRate() / 2,
+                        android.media.audiofx.Visualizer.getMaxCaptureRate(),
                         true,
                         false
                     )
+                    viz?.enabled = true // start capture immediately; vizOn() toggles off
                 }
             } catch (_: Exception) { viz = null }
         }
@@ -355,10 +358,6 @@ class AudioService : Service() {
         fun pi(action: String, code: Int): PendingIntent =
             PendingIntent.getService(this, code, Intent(this, AudioService::class.java).setAction(action),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val playPauseIntent = pi(ACTION_PLAY_PAUSE, 0)
-        val nextIntent = pi(ACTION_NEXT, 3)
-        val prevIntent = pi(ACTION_PREV, 4)
-        val stopIntent = pi(ACTION_STOP, 1)
         val contentIntent = PendingIntent.getActivity(
             this, 2, Intent(this, MainActivity::class.java).setFlags(
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT
@@ -370,31 +369,23 @@ class AudioService : Service() {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(if (isPlaying) R.drawable.ic_notif_play else R.drawable.ic_notif_pause)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            // order: prev | play/pause | next | close (MediaStyle shows 3 + close in compact)
-            .addAction(android.R.drawable.ic_media_previous, "Previous", prevIntent)
+            // MediaStyle compact row = prev | play/pause | next
+            .addAction(R.drawable.ic_notif_prev, "Previous", pi(ACTION_PREV, 4))
             .addAction(
-                if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                if (isPlaying) R.drawable.ic_notif_pause else R.drawable.ic_notif_play,
                 if (isPlaying) "Pause" else "Play",
-                playPauseIntent
+                pi(ACTION_PLAY_PAUSE, 0)
             )
-            .addAction(android.R.drawable.ic_media_next, "Next", nextIntent)
-            .addAction(android.R.drawable.ic_menu_rotate, "Loop",
-                PendingIntent.getService(this, 5,
-                    Intent(this, AudioService::class.java).setAction(ACTION_UI).putExtra(EXTRA_CMD, "loop"),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            .addAction(android.R.drawable.ic_menu_sort_by_size, "Shuffle",
-                PendingIntent.getService(this, 6,
-                    Intent(this, AudioService::class.java).setAction(ACTION_UI).putExtra(EXTRA_CMD, "shuffle"),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
+            .addAction(R.drawable.ic_notif_next, "Next", pi(ACTION_NEXT, 3))
+            .addAction(R.drawable.ic_notif_close, "Stop", pi(ACTION_STOP, 1))
 
-        // MediaStyle → artwork slot + compact view shows prev/play/next
+        // MediaStyle → artwork (from MediaMetadata.artworkUri) + compact shows prev/play/next
         if (player != null && session != null) {
             val style = androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(session!!.sessionCompatToken)

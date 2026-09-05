@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.haviq.richmusic.app-mergeReleaseResources-35:/values-ldltr-v21/values-ldltr-v21.xml",
+            "outputFile": "com.haviq.richmusic.app-mergeReleaseResources-38:/values-ldltr-v21/values-ldltr-v21.xml",
             "map": [
                 {
                     "source": "/opt/data/.gradle/caches/8.14.3/transforms/14cb83010c4337cc0a692cd2158b5ba9/transformed/appcompat-1.7.1/res/values-ldltr-v21/values-ldltr-v21.xml",

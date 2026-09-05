@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.haviq.richmusic.app-mergeReleaseResources-35:/values-as/values-as.xml",
+            "outputFile": "com.haviq.richmusic.app-mergeReleaseResources-38:/values-as/values-as.xml",
             "map": [
                 {
                     "source": "/opt/data/.gradle/caches/8.14.3/transforms/265738442d8ca41df1345d930645112b/transformed/browser-1.8.0/res/values-as/values-as.xml",
