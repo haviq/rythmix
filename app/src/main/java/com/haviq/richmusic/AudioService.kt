@@ -72,8 +72,19 @@ class AudioService : Service() {
 
         // attach Equalizer + Visualizer to the player's audio session
         // v1.4: viz retried on every STATE_READY until it exists (permission may arrive late)
+        // v1.7: track session id — if sink re-inits with a NEW id, release old eq/viz first
+        @Volatile private var fxSessionId: Int = 0
+
         fun attachAudioFx(sessionId: Int) {
             val svc = fxService ?: return
+            if (sessionId <= 0) return
+            if (fxSessionId != 0 && fxSessionId != sessionId) {
+                // stale fx from a dead audio session — drop them
+                try { eq?.release() } catch (_: Exception) {}
+                try { viz?.release() } catch (_: Exception) {}
+                eq = null; viz = null
+            }
+            fxSessionId = sessionId
             val recGranted = android.os.Build.VERSION.SDK_INT < 23 ||
                 androidx.core.content.ContextCompat.checkSelfPermission(svc, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             try {
@@ -157,6 +168,11 @@ class AudioService : Service() {
         p.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY && (eq == null || viz == null)) attachAudioFx(p.audioSessionId)
+            }
+            // v1.7: sink re-init (focus loss, device change) → session id BARU; EQ/viz lama
+            // menempel ke session mati = no output. Re-attach ke id terbaru.
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                attachAudioFx(audioSessionId)
             }
         })
 
@@ -268,6 +284,46 @@ class AudioService : Service() {
         @JavascriptInterface
         fun log(msg: String) { android.util.Log.d("rm-engine", msg) }
     }
+
+    /**
+     * v1.7 video fallback: NewPipe video resolve kena PO-token block di device.
+     * Saat videoMode aktif dan resolve NewPipe gagal → tampilkan engine YT IFrame
+     * (player YouTube resmi, selalu ada resolusi) fullscreen via overlay window.
+     * Overlay 200x200 di-resize; kembali ke -9999 saat audio-only.
+     */
+    fun showEngineVideo(on: Boolean) {
+        if (!overlayAttached) return
+        val wv = audioWebView ?: return
+        try {
+            val wm = windowManager ?: return
+            val params = wv.layoutParams as? android.view.WindowManager.LayoutParams ?: return
+            if (on) {
+                params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.x = 0
+                params.y = 0
+                params.flags = params.flags and
+                    (android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv())
+                wm.updateViewLayout(wv, params)
+                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh';})()")
+            } else {
+                params.width = 200
+                params.height = 200
+                params.x = -9999
+                params.y = -9999
+                params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                wm.updateViewLayout(wv, params)
+                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:absolute;left:-9999px;top:-9999px;width:200px;height:200px';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='';})()")
+            }
+        } catch (_: Exception) {}
+    }
+
+    /** v1.7: engine video pakai iframe controls=0 — seek/pause via JS commands dari UI. */
+    fun engineSeek(seconds: Double) {
+        pushToAudioJs("window.player && player.seekTo(${seconds}, true)")
+    }
+    fun enginePlay() { pushToAudioJs("window.player && player.playVideo()") }
+    fun enginePause() { pushToAudioJs("window.player && player.pauseVideo()") }
 
     private fun attachOverlay(wv: WebView) {
         if (!android.provider.Settings.canDrawOverlays(this)) return

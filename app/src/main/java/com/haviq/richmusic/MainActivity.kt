@@ -41,6 +41,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webViewContainer: FrameLayout
     private var uiWebView: WebView? = null
     private var playerView: androidx.media3.ui.PlayerView? = null
+    private lateinit var jsBridge: JSBridge
     private var videoMode = false
     private var adView: com.google.android.gms.ads.AdView? = null
 
@@ -118,7 +119,8 @@ class MainActivity : AppCompatActivity() {
         }
         wv.setBackgroundColor(0xFF0A0A0A.toInt())
         wv.webViewClient = buildUiWebViewClient()
-        wv.addJavascriptInterface(JSBridge(), "RichMusicBridge")
+        jsBridge = JSBridge()
+        wv.addJavascriptInterface(jsBridge, "RichMusicBridge")
         webViewContainer.addView(wv, ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
@@ -180,8 +182,10 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (videoMode) { // back exits video first, keeps playing audio
+        if (videoMode || jsBridge.engineVideoActive) { // back exits video first, keeps playing audio
             setVideoModeUi(false)
+            jsBridge.engineVideoActive = false
+            AudioService.showEngineVideo(false)
             pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
             return
         }
@@ -307,6 +311,8 @@ class MainActivity : AppCompatActivity() {
         @Volatile private var lastTitle: String? = null
         @Volatile private var lastArtist: String? = null
         @Volatile private var playRequested = false
+        // v1.7: engine YT-iframe video fallback aktif — kontrol native di-route ke engine
+        @Volatile var engineVideoActive = false
 
         @JavascriptInterface
         fun appVersion(): Int = BuildConfig.VERSION_CODE
@@ -354,6 +360,7 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
+                    engineVideoActive = false
                 } catch (e: Exception) {
                     // ExoPlayer path failed → try engine WebView IFrame (works in background via overlay)
                     AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
@@ -428,10 +435,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface fun seekTo(seconds: Double) {
+            if (engineVideoActive) { AudioService.engineSeek(seconds); return }
             scope.launch { AudioService.player?.seekTo((seconds * 1000).toLong()) }
         }
 
         @JavascriptInterface fun pause() {
+            if (engineVideoActive) { AudioService.enginePause(); return }
             scope.launch {
                 AudioService.player?.pause()
                 val p = AudioService.player ?: return@launch
@@ -440,6 +449,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface fun resume() {
+            if (engineVideoActive) { AudioService.enginePlay(); return }
             scope.launch {
                 val p = AudioService.player ?: return@launch
                 // v4.0.2: gens out of sync = old song's resume racing a fresh play() — drop it
@@ -524,6 +534,12 @@ class MainActivity : AppCompatActivity() {
                     uiWebView?.bringToFront()
                 }
             }
+            // v1.7: engine-video fallback aktif? setVideoMode(false) = user matikan video → sembunyikan iframe
+            if (!on) {
+                engineVideoActive = false
+                AudioService.showEngineVideo(false)
+                runOnUiThread { pushToJs("window.__rmEngineVideoMode && window.__rmEngineVideoMode(false)") }
+            }
         }
 
         /** Play muxed MP4 (audio+video) — JS calls this when videoMode is on. */
@@ -565,10 +581,24 @@ class MainActivity : AppCompatActivity() {
                     // v1.4.1: show surface only AFTER resolve succeeded — no black hole on failure
                     setVideoModeUi(true)
                 } catch (e: Exception) {
+                    // v1.7: NewPipe video resolve kena PO-token block → jangan drop ke audio.
+                    // Pakai engine YT IFrame fullscreen (player YouTube resmi, resolusi selalu ada).
                     setVideoModeUi(false)
-                    pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
-                    play(videoId, title, artist, startSeconds) // fallback: audio-only
-                    AudioService.onError?.invoke("Video gak tersedia — lanjut audio")
+                    try {
+                        engineVideoActive = true
+                        AudioService.playGen++
+                        AudioService.mediaGen = AudioService.playGen
+                        AudioService.player?.stop()
+                        AudioService.showEngineVideo(true)
+                        AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
+                        pushToJs("window.__rmEngineVideoMode && window.__rmEngineVideoMode(true)")
+                    } catch (e2: Exception) {
+                        engineVideoActive = false
+                        // overlay tidak tersedia → benar-benar fallback audio
+                        pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
+                        play(videoId, title, artist, startSeconds)
+                        AudioService.onError?.invoke("Video gak tersedia — lanjut audio")
+                    }
                 }
             }
         }
