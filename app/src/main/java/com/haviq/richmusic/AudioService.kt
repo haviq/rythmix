@@ -127,6 +127,12 @@ class AudioService : Service() {
         fun pushToAudioJs(script: String) {
             audioWebView?.post { audioWebView?.evaluateJavascript(script, null) }
         }
+
+        // v1.7: companion delegates — instance fungsi diakses dari MainActivity tanpa binder
+        @JvmStatic fun showEngineVideo(on: Boolean) { fxService?.engineShowVideo(on) }
+        @JvmStatic fun engineSeek(seconds: Double) { fxService?.engineDoSeek(seconds) }
+        @JvmStatic fun enginePlay() { fxService?.engineDoPlay() }
+        @JvmStatic fun enginePause() { fxService?.engineDoPause() }
     }
 
     inner class LocalBinder : Binder() {
@@ -291,7 +297,7 @@ class AudioService : Service() {
      * (player YouTube resmi, selalu ada resolusi) fullscreen via overlay window.
      * Overlay 200x200 di-resize; kembali ke -9999 saat audio-only.
      */
-    fun showEngineVideo(on: Boolean) {
+    fun engineShowVideo(on: Boolean) {
         if (!overlayAttached) return
         val wv = audioWebView ?: return
         try {
@@ -319,11 +325,11 @@ class AudioService : Service() {
     }
 
     /** v1.7: engine video pakai iframe controls=0 — seek/pause via JS commands dari UI. */
-    fun engineSeek(seconds: Double) {
+    fun engineDoSeek(seconds: Double) {
         pushToAudioJs("window.player && player.seekTo(${seconds}, true)")
     }
-    fun enginePlay() { pushToAudioJs("window.player && player.playVideo()") }
-    fun enginePause() { pushToAudioJs("window.player && player.pauseVideo()") }
+    fun engineDoPlay() { pushToAudioJs("window.player && player.playVideo()") }
+    fun engineDoPause() { pushToAudioJs("window.player && player.pauseVideo()") }
 
     private fun attachOverlay(wv: WebView) {
         if (!android.provider.Settings.canDrawOverlays(this)) return
