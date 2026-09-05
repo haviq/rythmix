@@ -7,6 +7,6 @@ public final class BuildConfig {
   public static final boolean DEBUG = false;
   public static final String APPLICATION_ID = "com.haviq.richmusic";
   public static final String BUILD_TYPE = "release";
-  public static final int VERSION_CODE = 48;
-  public static final String VERSION_NAME = "2.1";
+  public static final int VERSION_CODE = 49;
+  public static final String VERSION_NAME = "2.2";
 }

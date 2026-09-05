@@ -598,6 +598,9 @@ class MainActivity : AppCompatActivity() {
                     // Pakai engine YT IFrame fullscreen (player YouTube resmi, resolusi selalu ada).
                     setVideoModeUi(false)
                     try {
+                        // v2.2: judul notif dipaksa di sini — sebelumnya lagu engine fallback
+                        // nunjukin judul lagu SEBELUMNYA ("acak").
+                        AudioService.notifTitle = title; AudioService.notifArtist = artist
                         engineVideoActive = true
                         AudioService.playGen++
                         AudioService.mediaGen = AudioService.playGen

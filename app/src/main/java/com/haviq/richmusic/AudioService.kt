@@ -272,6 +272,22 @@ class AudioService : Service() {
             var ready = false;
             var currentId = null;
             var gen = 0;
+            // v2.2: tick posisi 500ms — tanpa ini lirik macet saat engine mode
+            // (ExoPlayer listener mati karena player di-stop; state iframe cuma
+            // fire saat ganti state, bukan tiap detik).
+            var tickTimer = null;
+            function startTick(myGen) {
+              stopTick();
+              tickTimer = setInterval(function() {
+                if (myGen !== gen || !player) { stopTick(); return; }
+                try {
+                  var st = player.getPlayerState ? player.getPlayerState() : -1;
+                  if (st === YT.PlayerState.PLAYING)
+                    __rmEngine.state(st, Math.round(player.getCurrentTime()), Math.round(player.getDuration()));
+                } catch(e){}
+              }, 500);
+            }
+            function stopTick() { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
             window.onYouTubeIframeAPIReady = function() { ready = true; };
             function mkPlayer(videoId, startSeconds) {
               gen++;
@@ -285,6 +301,8 @@ class AudioService : Service() {
                   onReady: function(e){ if(myGen!==gen) return; __rmEngine.log('ready'); e.target.playVideo(); },
                   onStateChange: function(e){
                     if(myGen!==gen) return;
+                    if (e.data === YT.PlayerState.PLAYING) startTick(myGen);
+                    else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) stopTick();
                     __rmEngine.state(e.data, Math.round(e.target.getCurrentTime()), Math.round(e.target.getDuration()));
                   },
                   onError: function(e){ if(myGen!==gen) return; __rmEngine.err(String(e.data)); }
