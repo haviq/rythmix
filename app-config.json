@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 45,
-    "versionName": "1.8",
-    "url": "https://github.com/haviq/rythmix/releases/download/v1.8/rythmix.apk",
-    "notes": "v1.8: FIX mode video jadi jendela 40% atas (lirik tetap terlihat), perbaikan visualizer & equalizer (retry audio session)"
+    "versionCode": 46,
+    "versionName": "1.9",
+    "url": "https://github.com/haviq/rythmix/releases/download/v1.9/rythmix.apk",
+    "notes": "v1.9: FIX crash saat pindah video ke audio, FIX video fullscreen (kini jendela 40%), FIX judul notifikasi, tombol notifikasi: next + shuffle + loop"
   },
   "maintenance": {
     "enabled": false,
