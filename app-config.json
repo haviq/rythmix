@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 44,
-    "versionName": "1.7",
-    "url": "https://github.com/haviq/rythmix/releases/download/v1.7/rythmix.apk",
-    "notes": "v1.7: FIX video selalu gagal (fallback player YouTube resmi fullscreen), FIX equalizer & visualizer hilang (auto re-attach audio session), FIX posisi bars visualizer"
+    "versionCode": 45,
+    "versionName": "1.8",
+    "url": "https://github.com/haviq/rythmix/releases/download/v1.8/rythmix.apk",
+    "notes": "v1.8: FIX mode video jadi jendela 40% atas (lirik tetap terlihat), perbaikan visualizer & equalizer (retry audio session)"
   },
   "maintenance": {
     "enabled": false,
