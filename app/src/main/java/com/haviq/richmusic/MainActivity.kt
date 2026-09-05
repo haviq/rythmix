@@ -311,8 +311,10 @@ class MainActivity : AppCompatActivity() {
         @Volatile private var lastTitle: String? = null
         @Volatile private var lastArtist: String? = null
         @Volatile private var playRequested = false
-        // v1.7: engine YT-iframe video fallback aktif — kontrol native di-route ke engine
+        // v1.7: engine YT-iframe video fallback aktif — kontrol native di-route ke engine.
+        // v2.1: setter sinkronkan mirror flag ke AudioService (toggle notif ikut engine).
         @Volatile var engineVideoActive = false
+            set(v) { field = v; AudioService.syncEngineFlag(v) }
 
         @JavascriptInterface
         fun appVersion(): Int = BuildConfig.VERSION_CODE

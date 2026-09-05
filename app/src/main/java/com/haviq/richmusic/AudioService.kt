@@ -57,6 +57,13 @@ class AudioService : Service() {
         // v1.9: judul notifikasi dipaksa dari UI (metadata ExoPlayer kosong saat engine mode)
         @Volatile var notifTitle: String? = null
         @Volatile var notifArtist: String? = null
+        // v2.1: mirror flag engine dari JSBridge — toggle notif tahu audio jalan di mana
+        // (JSBridge.engineVideoActive inner class MainActivity; ditulis via syncEngineFlag).
+        @Volatile var engineActive: Boolean = false
+        // v2.1: asumsi state play engine — toggle notif butuh tahu mau play atau pause
+        // (engine events opsional; default true = audio baru jalan = lagi play).
+        @Volatile var enginePlaying: Boolean = true
+        @JvmStatic fun syncEngineFlag(active: Boolean) { engineActive = active }
         var fxService: AudioService? = null
 
         var onTick: ((state: Int, posSec: Long, durSec: Long) -> Unit)? = null
@@ -343,8 +350,8 @@ class AudioService : Service() {
     fun engineDoSeek(seconds: Double) {
         pushToAudioJs("window.player && player.seekTo(${seconds}, true)")
     }
-    fun engineDoPlay() { pushToAudioJs("window.player && player.playVideo()") }
-    fun engineDoPause() { pushToAudioJs("window.player && player.pauseVideo()") }
+    fun engineDoPlay() { enginePlaying = true; pushToAudioJs("window.player && player.playVideo()") }
+    fun engineDoPause() { enginePlaying = false; pushToAudioJs("window.player && player.pauseVideo()") }
 
     private fun attachOverlay(wv: WebView) {
         if (!android.provider.Settings.canDrawOverlays(this)) return
@@ -413,6 +420,12 @@ class AudioService : Service() {
     }
 
     private fun togglePlayPause() {
+        // v2.1: audio bisa jalan via engine (mode video / fallback) — ExoPlayer dipause percuma.
+        if (engineActive) {
+            enginePlaying = !enginePlaying
+            if (enginePlaying) engineDoPlay() else engineDoPause()
+            return
+        }
         val p = player ?: return
         if (p.isPlaying) p.pause() else p.play()
     }
@@ -443,12 +456,14 @@ class AudioService : Service() {
             ),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val isPlaying = player?.isPlaying == true
+        // v2.1: state play ikut engine saat engine aktif (fallback video/audio via iframe).
+        val isPlaying = if (engineActive) enginePlaying else player?.isPlaying == true
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(if (isPlaying) R.drawable.ic_notif_play else R.drawable.ic_notif_pause)
+            // v2.1: ikon tunjukkan AKSI berikut — play saat paused, pause saat playing.
+            .setSmallIcon(if (isPlaying) R.drawable.ic_notif_pause else R.drawable.ic_notif_play)
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
