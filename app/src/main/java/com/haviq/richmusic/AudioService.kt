@@ -24,6 +24,10 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
+import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 
@@ -44,6 +48,14 @@ class AudioService : Service() {
         var session: MediaSession? = null
             private set
 
+        // equalizer + visualizer (android.media.audiofx, attached to ExoPlayer output session id)
+        var eq: android.media.audiofx.Equalizer? = null
+            private set
+        var viz: android.media.audiofx.Visualizer? = null
+            private set
+        var onWave: ((ByteArray) -> Unit)? = null
+        var fxService: AudioService? = null
+
         var onTick: ((state: Int, posSec: Long, durSec: Long) -> Unit)? = null
         var onEnded: (() -> Unit)? = null
         var onError: ((String) -> Unit)? = null
@@ -56,6 +68,34 @@ class AudioService : Service() {
         fun pushTick(state: Int, posSec: Long, durSec: Long) {
             if (playGen != mediaGen) return
             onTick?.invoke(state, posSec, durSec)
+        }
+
+        // attach Equalizer + Visualizer to the player's audio session
+        // v1.4: viz retried on every STATE_READY until it exists (permission may arrive late)
+        fun attachAudioFx(sessionId: Int) {
+            val svc = fxService ?: return
+            val recGranted = android.os.Build.VERSION.SDK_INT < 23 ||
+                androidx.core.content.ContextCompat.checkSelfPermission(svc, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            try {
+                if (eq == null) eq = android.media.audiofx.Equalizer(0, sessionId)
+            } catch (_: Exception) {}
+            try {
+                if (viz == null && recGranted) {
+                    viz = android.media.audiofx.Visualizer(sessionId)
+                    viz?.captureSize = android.media.audiofx.Visualizer.getCaptureSizeRange()[1]
+                    viz?.setDataCaptureListener(
+                        object : android.media.audiofx.Visualizer.OnDataCaptureListener {
+                            override fun onWaveFormDataCapture(v: android.media.audiofx.Visualizer?, wave: ByteArray?, sampling: Int) {
+                                if (wave != null) onWave?.invoke(wave)
+                            }
+                            override fun onFftDataCapture(v: android.media.audiofx.Visualizer?, fft: ByteArray?, sampling: Int) {}
+                        },
+                        android.media.audiofx.Visualizer.getMaxCaptureRate() / 2,
+                        true,
+                        false
+                    )
+                }
+            } catch (_: Exception) { viz = null }
         }
 
         fun youtubeState(p: ExoPlayer?): Int {
@@ -89,6 +129,7 @@ class AudioService : Service() {
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate() {
         super.onCreate()
+        fxService = this
         createChannel()
 
         // --- ExoPlayer (native playback via resolved stream URL) ---
@@ -108,6 +149,13 @@ class AudioService : Service() {
             )
             .build()
         player = p
+
+        // attach equalizer + visualizer once audio session is up
+        p.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state == Player.STATE_READY && (eq == null || viz == null)) attachAudioFx(p.audioSessionId)
+            }
+        })
 
         p.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -264,6 +312,9 @@ class AudioService : Service() {
     }
 
     override fun onDestroy() {
+        try { eq?.release(); eq = null } catch (_: Exception) {}
+        try { viz?.release(); viz = null } catch (_: Exception) {}
+        fxService = null
         session?.release()
         session = null
         player?.release()

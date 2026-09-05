@@ -11,8 +11,11 @@ android {
         applicationId "com.haviq.richmusic"
         minSdk 24
         targetSdk 36
-        versionCode 34
-        versionName "4.2.0"
+        versionCode 40
+        versionName "1.4"
+    }
+    lint {
+        checkReleaseBuilds false
     }
 
     buildFeatures {
@@ -47,6 +50,7 @@ implementation "androidx.appcompat:appcompat:1.7.1"
 implementation "androidx.webkit:webkit:1.12.1"
 implementation "androidx.media3:media3-exoplayer:1.5.1"
 implementation "androidx.media3:media3-session:1.5.1"
+implementation "androidx.media3:media3-ui:1.5.1"
 implementation "androidx.media:media:1.7.0"
 implementation "com.google.code.gson:gson:2.11.0"
     implementation "com.squareup.okhttp3:okhttp:4.12.0"

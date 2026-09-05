@@ -95,6 +95,37 @@ object StreamResolver {
         return pool.maxByOrNull { it.averageBitrate }
     }
 
+    // muxed MP4 video streams (progressive: audio+video satu file — bisa buat playback & download)
+    private fun viaNewPipeVideo(videoId: String, resolution: Int): String {
+        ensureInit()
+        val yt = ServiceList.YouTube
+        val info = NPStreamInfo.getInfo(yt, "https://www.youtube.com/watch?v=$videoId")
+        // ponytail: VideoStream gak punya flag muxed; M4A = container audio+video (progressive itag 18/22/37).
+        val muxed = info.videoStreams.filter {
+            it.format == org.schabi.newpipe.extractor.MediaFormat.M4A && it.resolution.contains(Regex("\\d+p"))
+        }
+        if (muxed.isEmpty()) throw IllegalStateException("no muxed video")
+        val want = if (resolution <= 0) muxed.maxByOrNull { it.resolution.filter(Char::isDigit).toIntOrNull() ?: 0 }
+                   else muxed.minByOrNull { kotlin.math.abs((it.resolution.filter(Char::isDigit).toIntOrNull() ?: 9999) - resolution) }
+        return (want ?: muxed.first()).content
+    }
+
+    suspend fun resolveVideo(videoId: String, resolution: Int = 0): String = withContext(Dispatchers.IO) {
+        val key = "v$videoId@$resolution"
+        val now = System.currentTimeMillis()
+        val hit = cache[key]
+        if (hit != null && now - hit.second < CACHE_MS) return@withContext hit.first
+        var fresh: String? = null
+        var last: Exception? = null
+        repeat(3) {
+            try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
+        }
+        val f = fresh ?: throw (last ?: IllegalStateException("video resolve failed"))
+        cache[key] = f to now
+        persist()
+        f
+    }
+
     private fun viaNewPipe(videoId: String): String {
         ensureInit()
         val yt = ServiceList.YouTube

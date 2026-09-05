@@ -40,6 +40,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webViewContainer: FrameLayout
     private var uiWebView: WebView? = null
+    private var playerView: androidx.media3.ui.PlayerView? = null
+    private var videoMode = false
     private var adView: com.google.android.gms.ads.AdView? = null
 
     private val serviceConnection = object : ServiceConnection {
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
                 pushToJs("window.__rmOnError && window.__rmOnError(${jsQuote(msg)})")
             }
             AudioService.onUiCommand = { js -> pushToJs(js) }
+            playerView?.player = AudioService.player
             startProgressTicker()
         }
 
@@ -79,6 +82,12 @@ class MainActivity : AppCompatActivity() {
 
         ensureNotificationPermission()
         StreamResolver.init(applicationContext)
+
+        // RECORD_AUDIO is a runtime permission — required for android.media.audiofx.Visualizer
+        if (Build.VERSION.SDK_INT >= 23 &&
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 4242)
+        }
 
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
             overlayPermLauncher.launch(
@@ -115,6 +124,19 @@ class MainActivity : AppCompatActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT
         ))
         uiWebView = wv
+
+        // v1.4 video mode: PlayerView overlay on top of WebView, hidden until JS asks
+        val pv = androidx.media3.ui.PlayerView(this)
+        pv.useController = false
+        pv.visibility = android.view.View.GONE
+        pv.setBackgroundColor(0xFF000000.toInt())
+        webViewContainer.addView(pv, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        playerView = pv
+        AudioService.player?.let { pv.player = it }
+
         wv.loadUrl("https://rythmix-music.vercel.app")
     }
 
@@ -150,9 +172,22 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (videoMode) { // back exits video first, keeps playing audio
+            setVideoModeUi(false)
+            pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
+            return
+        }
         val wv = uiWebView
         if (wv != null && wv.canGoBack()) wv.goBack()
         else moveTaskToBack(true) // hide, don't destroy
+    }
+
+    private fun setVideoModeUi(on: Boolean) {
+        videoMode = on
+        runOnUiThread {
+            playerView?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
+            if (!on) uiWebView?.bringToFront()
+        }
     }
 
     override fun onResume() {
@@ -417,6 +452,143 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface fun setVolume(v: Double) {
             scope.launch { AudioService.player?.volume = v.toFloat().coerceIn(0f, 1f) }
+        }
+
+        // ---- Equalizer ----
+        @JavascriptInterface fun eqBands(): String {
+            val e = AudioService.eq ?: return "[]"
+            return try {
+                val bands = (0 until e.numberOfBands).map { i ->
+                    val r = e.getBandLevelRange()
+                    """{"lo":${r[0]},"hi":${r[1]},"cur":${e.getBandLevel(i.toShort())}}"""
+                }
+                """{"min":${e.getBandLevelRange()[0]},"max":${e.getBandLevelRange()[1]},"bands":[${bands.joinToString(",")}]}"""
+            } catch (e2: Exception) { "[]" }
+        }
+        @JavascriptInterface fun setEqBand(i: Int, level: Int) {
+            try { AudioService.eq?.setBandLevel(i.toShort(), level.toShort()) } catch (_: Exception) {}
+        }
+        @JavascriptInterface fun eqEnabled(): Boolean = try { AudioService.eq?.enabled == true } catch (_: Exception) { false }
+        @JavascriptInterface fun setEqEnabled(on: Boolean) {
+            try { AudioService.eq?.enabled = on } catch (_: Exception) {}
+        }
+
+        // ---- Visualizer wave ----
+        @JavascriptInterface fun vizOn(on: Boolean) {
+            if (on) {
+                // v1.4: ensure viz object exists & enabled (permission may have arrived after first READY)
+                AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
+                try { AudioService.viz?.enabled = true } catch (_: Exception) {}
+            } else {
+                try { AudioService.viz?.enabled = false } catch (_: Exception) {}
+            }
+            AudioService.onWave = if (on) { wave ->
+                val sb = StringBuilder("[")
+                // downsample 1024 -> 24 bars
+                val step = wave.size / 24
+                for (i in 0 until 24) {
+                    if (i > 0) sb.append(',')
+                    sb.append((wave[i * step].toInt() and 0xFF) - 128)
+                }
+                sb.append(']')
+                pushToJs("window.__rmWave && window.__rmWave($sb)")
+            } else null
+        }
+        @JavascriptInterface fun vizReady(): Boolean = try { AudioService.viz?.enabled == true } catch (_: Exception) { false }
+
+        // ---- Video mode (v1.4) ----
+        @JavascriptInterface fun setVideoMode(on: Boolean) {
+            videoMode = on
+            runOnUiThread {
+                val pv = playerView ?: return@runOnUiThread
+                if (on) {
+                    pv.visibility = android.view.View.VISIBLE
+                    pv.bringToFront()
+                } else {
+                    pv.visibility = android.view.View.GONE
+                    uiWebView?.bringToFront()
+                }
+            }
+        }
+
+        /** Play muxed MP4 (audio+video) — JS calls this when videoMode is on. */
+        @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
+            scope.launch {
+                try {
+                    AudioService.playGen++
+                    val targetGen = AudioService.playGen
+                    val url = StreamResolver.resolveVideo(videoId, 0)
+                    val p = AudioService.player ?: return@launch
+                    if (targetGen != AudioService.playGen) return@launch
+                    p.setMediaItem(
+                        androidx.media3.common.MediaItem.Builder()
+                            .setUri(Uri.parse(url))
+                            .setMediaMetadata(
+                                androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle(title).setArtist(artist).build()
+                            )
+                            .build(),
+                        (startSeconds * 1000).toLong()
+                    )
+                    p.prepare()
+                    p.play()
+                    AudioService.mediaGen = targetGen
+                } catch (e: Exception) {
+                    AudioService.onError?.invoke(e.message ?: "video failed")
+                }
+            }
+        }
+
+        /** Download muxed MP4 at chosen resolution (0 = best) straight to Movies/Rythmix. */
+        @JavascriptInterface fun downloadVideo(videoId: String, title: String, resolution: Int) {
+            scope.launch {
+                try {
+                    val url = StreamResolver.resolveVideo(videoId, resolution)
+                    val safe = title.replace(Regex("[^\\w \\-]"), "").trim().ifBlank { videoId }
+                    val req = android.app.DownloadManager.Request(Uri.parse(url))
+                        .setTitle("$safe (${resolution}p)")
+                        .setDestinationInExternalPublicDir(
+                            android.os.Environment.DIRECTORY_MOVIES, "Rythmix/$safe-${resolution}p.mp4")
+                        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    getSystemService(Context.DOWNLOAD_SERVICE).let {
+                        (it as android.app.DownloadManager).enqueue(req)
+                    }
+                    pushToJs("toast('⬇️ Download video $resolution" + "p dimulai')")
+                } catch (e: Exception) {
+                    pushToJs("toast('❌ Video download gagal: ${e.message?.replace("'", "")?.take(60) ?: "error"}')")
+                }
+            }
+        }
+
+        // ---- Local file playback (MP4/MP3/M4A) ----
+        @JavascriptInterface fun playFile(path: String, title: String, artist: String) {
+            scope.launch {
+                try {
+                    AudioService.playGen++
+                    val targetGen = AudioService.playGen
+                    val p = AudioService.player ?: return@launch
+                    if (targetGen != AudioService.playGen) return@launch
+                    val uri = if (path.startsWith("content://") || path.startsWith("file://")) Uri.parse(path)
+                              else Uri.fromFile(java.io.File(path))
+                    p.setMediaItem(
+                        androidx.media3.common.MediaItem.Builder()
+                            .setUri(uri)
+                            .setMediaMetadata(
+                                androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle(title)
+                                    .setArtist(artist)
+                                    .build()
+                            )
+                            .build(),
+                        0L
+                    )
+                    p.prepare()
+                    p.play()
+                    AudioService.mediaGen = targetGen
+                } catch (e: Exception) {
+                    AudioService.onError?.invoke(e.message ?: "play file failed")
+                }
+            }
         }
 
         @JavascriptInterface fun setRate(r: Double) {
