@@ -518,11 +518,15 @@ const LOADER_API = 'https://loader.to/ajax/download.php';
 const DL_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 /* start a conversion job: returns { jobId, progressUrl } */
+const DL_FORMATS = ['mp3', 'm4a', 'webm', 'opus', 'flac', 'wav']; // loader.to verified set
+
 app.get('/api/download-start', async (req, res) => {
   const videoId = String(req.query.videoId || '');
+  const format = String(req.query.format || 'mp3');
   if (!/^[\w-]{6,20}$/.test(videoId)) return res.status(400).json({ error: 'bad id' });
+  if (!DL_FORMATS.includes(format)) return res.status(400).json({ error: 'bad format' });
   try {
-    const u = `${LOADER_API}?format=mp3&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`;
+    const u = `${LOADER_API}?format=${format}&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`;
     const r = await fetch(u, { headers: { 'User-Agent': DL_UA, Referer: 'https://loader.to/' } });
     if (!r.ok) throw new Error(`start -> ${r.status}`);
     const d = await r.json();

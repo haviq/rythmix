@@ -180,6 +180,7 @@ const Player = {
   sbSkipped: 0, // cumulative seconds auto-skipped via SponsorBlock
   sbEnabled: store.get('sb_on', true),
   hq: store.get('yt_hq', false), // false = YouTube Music audio, true = YouTube max quality
+  videoMode: store.get('vid_mode', false), // v1.4: true = play with video (native PlayerView)
   quality: 'hd720',
   cued: false,
   pending: null, // song shown in Now Playing while previous track keeps playing
@@ -323,6 +324,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
   (function() {
     var _rmEv = {};
     var _rmSt = { state: -1, time: 0, dur: 0 };
+    window.__rmState = _rmSt; // same object ref — mutated in place below
     window.__rmNativeUpdate = function(s, t, d) {
       var dur = d > 0 ? d : _rmSt.dur;
       var changed = s !== _rmSt.state || dur !== _rmSt.dur;
@@ -351,7 +353,12 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
       // native path: bridge.play resolves via NewPipe Extractor in-app (~1-2s), no loader.to
       // fallback: JS resolves via download API if NewPipe fails (__rmNativeFallback)
-      window.RichMusicBridge.play(id, title, artist, start);
+      if (window.Player && window.Player.videoMode && window.RichMusicBridge.playVideo) {
+        window.RichMusicBridge.playVideo(id, title, artist, start);
+        window.RichMusicBridge.setVideoMode(true);
+      } else {
+        window.RichMusicBridge.play(id, title, artist, start);
+      }
     };
     YT.Player.prototype.cueVideoById = function(opts) {
       // native: prepare (resolve+setMediaItem+prepare, NO play) so a restored (cued)
@@ -1110,7 +1117,7 @@ function renderQueue() {
     const qBtn = $('.btn-queue', row);
     if (qBtn) qBtn.addEventListener('click', (e) => { e.stopPropagation(); queueSong(songFromItem(it)); });
     const dlBtn = $('.btn-dl', row);
-    if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadSong(songFromItem(it)); });
+    if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); pickDownloadFormat(songFromItem(it)); });
     const moreBtn = $('.btn-more', row);
     if (moreBtn) moreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1221,11 +1228,12 @@ async function loadRelated(force = false) {
 
 /* ================= download (via converter service, direct save) ================= */
 const activeDownloads = new Set();
-function downloadFilename(song) {
+const DL_EXT = { mp3: 'mp3', m4a: 'm4a', webm: 'webm', opus: 'opus', flac: 'flac', wav: 'wav' };
+function downloadFilename(song, ext) {
   const t = displayTitle(song && song.title) || 'track';
   const a = String((song && song.artist) || '').split(',')[0].trim();
   const raw = (a ? `${a} - ${t}` : t).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `${raw.slice(0, 80) || 'track'}.mp3`;
+  return `${raw.slice(0, 80) || 'track'}.${ext || 'mp3'}`;
 }
 function clickDownload(href, name) {
   const aEl = document.createElement('a');
@@ -1237,13 +1245,19 @@ function clickDownload(href, name) {
   aEl.click();
   aEl.remove();
 }
-async function downloadSong(song) {
+async function downloadSong(song, format) {
   if (!song || !song.videoId) return;
-  if (activeDownloads.has(song.videoId)) { toast('Already downloading this song…'); return; }
-  activeDownloads.add(song.videoId);
-  toast(`Preparing "${song.title}" (320kbps MP3)…`);
+  format = format || 'mp3';
+  if (format === 'mp4') { // video: native DownloadManager path (Android app only)
+    if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.downloadVideo) { toast('Download video MP4 hanya di aplikasi Android'); return; }
+    pickVideoResolution((res) => window.RichMusicBridge.downloadVideo(song.videoId, song.title || 'video', res));
+    return;
+  }
+  if (activeDownloads.has(song.videoId + format)) { toast('Already downloading this song…'); return; }
+  activeDownloads.add(song.videoId + format);
+  toast(`Preparing "${song.title}" (${format.toUpperCase()})…`);
   try {
-    const st = await api(`/api/download-start?videoId=${encodeURIComponent(song.videoId)}`);
+    const st = await api(`/api/download-start?videoId=${encodeURIComponent(song.videoId)}&format=${format}`);
     if (!st.progressUrl) throw new Error('no progress url');
     let url = null;
     let lastProg = -1;
@@ -1262,7 +1276,7 @@ async function downloadSong(song) {
     }
     if (!url) throw new Error('timeout');
     toast(`Downloading "${song.title}"…`);
-    const name = downloadFilename(song);
+    const name = downloadFilename(song, DL_EXT[format] || format);
     try {
       const r = await fetch(url, { mode: 'cors' });
       if (!r.ok) throw new Error('fetch');
@@ -1280,8 +1294,42 @@ async function downloadSong(song) {
   } catch (e) {
     toast('Download failed — try again later');
   } finally {
-    activeDownloads.delete(song.videoId);
+    activeDownloads.delete(song.videoId + format);
   }
+}
+
+/* v1.4: format picker — audio via converter, MP4 via native DownloadManager */
+function pickDownloadFormat(song) {
+  const modal = $('#modal');
+  const body = $('#modal-body');
+  $('#modal-title').textContent = `Download · ${displayTitle(song.title) || 'Lagu'}`;
+  $('.modal-actions')?.classList.add('hidden');
+  const fmts = [
+    ['mp3', 'MP3 · 320kbps', 'paling umum'],
+    ['m4a', 'M4A · AAC', 'iOS / kualitas asli'],
+    ['opus', 'OPUS', 'ringan, kualitas tinggi'],
+    ['webm', 'WEBM audio', 'open format'],
+    ['flac', 'FLAC', 'lossless'],
+    ['wav', 'WAV', 'PCM mentah, besar'],
+    ['mp4', 'MP4 Video', 'dengan gambar — pilih resolusi'],
+  ];
+  body.innerHTML = fmts.map(([f, l, d]) =>
+    `<button type="button" class="modal-row" data-dlf="${f}"><span>${l}</span><small style="margin-left:auto;color:var(--muted)">${d}</small></button>`).join('');
+  $$('[data-dlf]', body).forEach((b) => b.addEventListener('click', () => {
+    closeModal();
+    downloadSong(song, b.dataset.dlf);
+  }));
+  modal.classList.remove('hidden');
+}
+function pickVideoResolution(cb) {
+  const modal = $('#modal');
+  const body = $('#modal-body');
+  $('#modal-title').textContent = 'Resolusi Video';
+  $('.modal-actions')?.classList.add('hidden');
+  const res = [[720, '720p HD'], [480, '480p'], [360, '360p hemat'], [0, 'Terbaik tersedia']];
+  body.innerHTML = res.map(([r, l]) => `<button type="button" class="modal-row" data-res="${r}"><span>${l}</span></button>`).join('');
+  $$('[data-res]', body).forEach((b) => b.addEventListener('click', () => { closeModal(); cb(Number(b.dataset.res)); }));
+  modal.classList.remove('hidden');
 }
 
 /* native stream URL resolver — reuse download API (proven working path).
@@ -1480,7 +1528,7 @@ function bindItems(root) {
     const qBtn = $('.btn-queue', el);
     if (qBtn) qBtn.addEventListener('click', (e) => { e.stopPropagation(); queueSong(songFromItem(it)); });
     const dlBtn = $('.btn-dl', el);
-    if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadSong(songFromItem(it)); });
+    if (dlBtn) dlBtn.addEventListener('click', (e) => { e.stopPropagation(); pickDownloadFormat(songFromItem(it)); });
     const moreBtn = $('.btn-more', el);
     if (moreBtn) moreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2469,7 +2517,7 @@ function openSongMenu(song, opts = {}) {
     else if (a === 'queue') queueSong(song, false);
     else if (a === 'fav') Library.toggleFav(song);
     else if (a === 'pl') { openAddToPlaylist(song); return; }
-    else if (a === 'dl') downloadSong(song);
+    else if (a === 'dl') pickDownloadFormat(song);
     else if (a === 'share') { shareSong(song); }
     else if (a === 'artist') { goToArtist(song); }
     else if (a === 'up') moveQueued(qi, -1);
@@ -2500,17 +2548,19 @@ function openNowPlayingMore() {
     ${row('speed', 'i-clock', `Speed · ${Player.speed}×`)}
     ${row('eq', 'i-eq', 'Equalizer')}
     ${row('viz', 'i-wave', Player.vizOn ? 'Visualizer on' : 'Visualizer')}
+    ${row('video', 'i-pip', Player.videoMode ? 'Mode: Video' : 'Mode: Audio')}
     ${row('float', 'i-pip', Player.floatOn ? 'Widget on' : 'Widget')}
     ${row('quality', 'i-expand', Player.hq ? 'Quality · Max' : 'Quality · YouTube Music')}
     ${row('sb', 'i-next', Player.sbEnabled ? 'SponsorBlock on' : 'SponsorBlock')}`;
   $$('[data-npact]', body).forEach((b) => b.addEventListener('click', () => {
     const a = b.dataset.npact;
-    if (a === 'dl') downloadSong(song);
+    if (a === 'dl') pickDownloadFormat(song);
     else if (a === 'share') shareSong(song);
     else if (a === 'artist') goToArtist(song);
     else if (a === 'speed') cycleSpeed();
     else if (a === 'eq') openEqualizer();
     else if (a === 'viz') toggleVisualizer();
+    else if (a === 'video') toggleVideoMode();
     else if (a === 'float') toggleFloatWidget();
     else if (a === 'quality') toggleQuality();
     else if (a === 'sb') toggleSB();
@@ -2905,7 +2955,7 @@ $('#np-queueadd').addEventListener('click', () => {
   switchNPTab('queue');
 });
 $('#np-addpl').addEventListener('click', () => focusedSong() && openAddToPlaylist(focusedSong()));
-$('#np-download').addEventListener('click', () => focusedSong() && downloadSong(focusedSong()));
+$('#np-download').addEventListener('click', () => focusedSong() && pickDownloadFormat(focusedSong()));
 $('#np-shuffle').addEventListener('click', function () {
   Player.shuffle = !Player.shuffle;
   this.classList.toggle('on', Player.shuffle);
@@ -2942,11 +2992,15 @@ function openEqualizer() {
     return;
   }
   const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
-  body.innerHTML = `<div class="pl-form-hint">Geser untuk menyetel. Nilai ${data.min}..${data.max}</div>
+  body.innerHTML = `<div class="pl-form-hint">Geser naik/turun untuk menyetel.</div>
     <div class="eq-wrap" id="eq-wrap">
       ${data.bands.map((b, i) => `
         <div class="eq-band">
-          <input type="range" min="${b.lo}" max="${b.hi}" value="${b.cur}" data-i="${i}" class="eq-range"/>
+          <div class="eq-val" data-v="${i}">0</div>
+          <div class="eq-vslider" data-i="${i}" data-lo="${b.lo}" data-hi="${b.hi}" data-cur="${b.cur}">
+            <div class="eq-vfill"></div>
+            <div class="eq-vthumb"></div>
+          </div>
           <span class="eq-name">${names[i] || i}</span>
         </div>`).join('')}
     </div>
@@ -2954,16 +3008,69 @@ function openEqualizer() {
       <button type="button" class="pill-btn" id="eq-reset">Reset</button>
       <button type="button" class="pill-btn primary" id="eq-done">Done</button>
     </div>`;
-  body.querySelectorAll('.eq-range').forEach((r) => {
-    const apply = () => window.RichMusicBridge.setEqBand(Number(r.dataset.i), Number(r.value));
-    r.addEventListener('input', apply);
-    r.addEventListener('touchend', apply); // WebView slider reliability
+  // custom vertical slider — WebView touch hit-testing on rotated input[type=range] is broken (v1.4)
+  const paint = (sl) => {
+    const lo = +sl.dataset.lo, hi = +sl.dataset.hi, cur = +sl.dataset.cur;
+    const f = (cur - lo) / (hi - lo); // 0..1 bottom..top
+    const H = sl.clientHeight, thumb = 26;
+    sl.querySelector('.eq-vfill').style.height = (f * (H - thumb) + thumb / 2) + 'px';
+    sl.querySelector('.eq-vthumb').style.bottom = (f * (H - thumb)) + 'px';
+    const v = sl.parentElement.querySelector('.eq-val');
+    if (v) v.textContent = Math.round(cur / 100);
+  };
+  const setBand = (sl, cur) => {
+    sl.dataset.cur = String(cur);
+    paint(sl);
+    window.RichMusicBridge.setEqBand(Number(sl.dataset.i), cur);
+  };
+  body.querySelectorAll('.eq-vslider').forEach((sl) => {
+    paint(sl);
+    const fromY = (clientY) => {
+      const r = sl.getBoundingClientRect();
+      const lo = +sl.dataset.lo, hi = +sl.dataset.hi;
+      const f = 1 - Math.min(1, Math.max(0, (clientY - r.top) / r.height));
+      return Math.round(lo + f * (hi - lo));
+    };
+    const move = (e) => {
+      const t = e.touches ? e.touches[0] : e;
+      setBand(sl, fromY(t.clientY));
+      e.preventDefault();
+    };
+    const start = (e) => {
+      move(e);
+      const up = () => { document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up); document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); };
+      document.addEventListener('touchmove', move, { passive: false });
+      document.addEventListener('touchend', up);
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    };
+    sl.addEventListener('touchstart', start, { passive: false });
+    sl.addEventListener('pointerdown', start);
   });
   $('#eq-reset').addEventListener('click', () => {
-    body.querySelectorAll('.eq-range').forEach((r) => { r.value = 0; window.RichMusicBridge.setEqBand(Number(r.dataset.i), 0); });
+    body.querySelectorAll('.eq-vslider').forEach((sl) => setBand(sl, 0));
   });
   $('#eq-done').addEventListener('click', closeModal);
   modal.classList.remove('hidden');
+}
+function toggleVideoMode() {
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) { toast('Mode video hanya di aplikasi Android'); return; }
+  Player.videoMode = !Player.videoMode;
+  store.set('vid_mode', Player.videoMode);
+  window.RichMusicBridge.setVideoMode(Player.videoMode);
+  if (Player.videoMode && Player.current && Player.current.videoId) {
+    // restart current track with video stream, keep position
+    const pos = (window.__rmState && window.__rmState.time) || 0;
+    window.RichMusicBridge.playVideo(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
+    toast('Mode video: ON');
+  } else if (!Player.videoMode) {
+    if (Player.current && Player.current.videoId) {
+      const pos = (window.__rmState && window.__rmState.time) || 0;
+      window.RichMusicBridge.play(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
+    }
+    toast('Mode audio: ON');
+  }
+  renderMoreMenu && renderMoreMenu();
 }
 function toggleVisualizer() {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) { toast('Visualizer hanya di aplikasi Android'); return; }
@@ -2977,7 +3084,11 @@ function toggleVisualizer() {
     for (let i = 0; i < 24; i++) viz.appendChild(document.createElement('i'));
     $('#np-art-wrap').appendChild(viz);
   } else if (!Player.vizOn && viz) viz.remove();
-  toast(Player.vizOn ? 'Visualizer on' : 'Visualizer off');
+  if (Player.vizOn && window.RichMusicBridge.vizReady && !window.RichMusicBridge.vizReady()) {
+    toast('Visualizer belum aktif — izinkan Mikrofon di Settings HP → Apps → Rythmix → Permissions');
+  } else {
+    toast(Player.vizOn ? 'Visualizer on' : 'Visualizer off');
+  }
 }
 window.__rmWave = function(bars) {
   const viz = $('#np-vizbars');

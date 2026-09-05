@@ -731,6 +731,10 @@ body:not(.paused) .np-art-wrap { transform: scale(1.01); }
 /* v1.1: equalizer modal + visualizer bars */
 .eq-wrap { display: flex; justify-content: center; gap: 14px; padding: 18px 0 8px; }
 .eq-band { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.eq-vslider { position: relative; width: 34px; height: 190px; background: rgba(255,255,255,.08); border-radius: 17px; touch-action: none; cursor: pointer; }
+.eq-vfill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 17px; background: linear-gradient(180deg, #ffd54a, #f5b301); }
+.eq-vthumb { position: absolute; left: 3px; right: 3px; height: 26px; border-radius: 13px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.eq-val { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* horizontal sliders rotated — vertical input[type=range] is unreliable in WebView */
 .eq-range { transform: rotate(-90deg); width: 150px; height: 28px; margin: 61px 0; accent-color: var(--accent); }
 .eq-band { min-height: 200px; justify-content: flex-end; }
