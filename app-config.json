@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 46,
-    "versionName": "1.9",
-    "url": "https://github.com/haviq/rythmix/releases/download/v1.9/rythmix.apk",
-    "notes": "v1.9: FIX crash saat pindah video ke audio, FIX video fullscreen (kini jendela 40%), FIX judul notifikasi, tombol notifikasi: next + shuffle + loop"
+    "versionCode": 47,
+    "versionName": "2.0",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.0/rythmix.apk",
+    "notes": "v2.0: FIX notifikasi — judul lagu asli selalu tampil, tombol Prev/Play/Next di baris utama + Shuffle/Loop/Stop saat expand (Android 11+ tidak lagi menimpa)"
   },
   "maintenance": {
     "enabled": false,
