@@ -882,6 +882,8 @@ drawable ic_notif_next
 drawable ic_notif_pause
 drawable ic_notif_play
 drawable ic_notif_prev
+drawable ic_notif_repeat
+drawable ic_notif_shuffle
 drawable media3_icon_album
 drawable media3_icon_artist
 drawable media3_icon_block

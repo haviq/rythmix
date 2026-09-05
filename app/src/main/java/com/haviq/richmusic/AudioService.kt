@@ -54,6 +54,9 @@ class AudioService : Service() {
         var viz: android.media.audiofx.Visualizer? = null
             private set
         var onWave: ((ByteArray) -> Unit)? = null
+        // v1.9: judul notifikasi dipaksa dari UI (metadata ExoPlayer kosong saat engine mode)
+        @Volatile var notifTitle: String? = null
+        @Volatile var notifArtist: String? = null
         var fxService: AudioService? = null
 
         var onTick: ((state: Int, posSec: Long, durSec: Long) -> Unit)? = null
@@ -306,6 +309,10 @@ class AudioService : Service() {
      * Overlay 200x200 di-resize; kembali ke -9999 saat audio-only.
      */
     fun engineShowVideo(on: Boolean) {
+        // v1.9: bisa dipanggil dari JS binder thread — windowManager wajib main thread (crash fix)
+        android.os.Handler(android.os.Looper.getMainLooper()).post { engineShowVideoInner(on) }
+    }
+    private fun engineShowVideoInner(on: Boolean) {
         if (!overlayAttached) return
         val wv = audioWebView ?: return
         try {
@@ -417,8 +424,10 @@ class AudioService : Service() {
     private fun updateNotification() {
         val p = player ?: return
         val mi = p.currentMediaItem
-        val title = mi?.mediaMetadata?.title?.toString() ?: "Rythmix Music"
-        val text = mi?.mediaMetadata?.artist?.toString() ?: ""
+        val title = notifTitle?.takeIf { it.isNotBlank() }
+            ?: mi?.mediaMetadata?.title?.toString() ?: "Rythmix Music"
+        val text = notifArtist?.takeIf { it.isNotBlank() }
+            ?: mi?.mediaMetadata?.artist?.toString() ?: ""
         val notif = buildNotification(title, text)
         val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         mgr.notify(NOTIF_ID, notif)
@@ -453,6 +462,19 @@ class AudioService : Service() {
                 pi(ACTION_PLAY_PAUSE, 0)
             )
             .addAction(R.drawable.ic_notif_next, "Next", pi(ACTION_NEXT, 3))
+            // v1.9: shuffle & loop — expanded view only; commands relayed ke UI webview
+            .addAction(R.drawable.ic_notif_shuffle, "Shuffle", pi(ACTION_UI, 6).let {
+                PendingIntent.getService(this, 6,
+                    Intent(this, AudioService::class.java)
+                        .setAction(ACTION_UI).putExtra(EXTRA_CMD, "shuffle"),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            })
+            .addAction(R.drawable.ic_notif_repeat, "Loop", pi(ACTION_UI, 7).let {
+                PendingIntent.getService(this, 7,
+                    Intent(this, AudioService::class.java)
+                        .setAction(ACTION_UI).putExtra(EXTRA_CMD, "loop"),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            })
             .addAction(R.drawable.ic_notif_close, "Stop", pi(ACTION_STOP, 1))
 
         // MediaStyle → artwork (from MediaMetadata.artworkUri) + compact shows prev/play/next

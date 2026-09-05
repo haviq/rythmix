@@ -335,6 +335,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     lastVideoId = videoId
                     lastTitle = title; lastArtist = artist
+                    AudioService.notifTitle = title; AudioService.notifArtist = artist
                     // v4.0.2: stop old item NOW + align gens so stray resume()/stale ticks
                     // can't resurrect the previous song (pause/resume blink on track switch)
                     AudioService.playGen++
@@ -363,6 +364,7 @@ class MainActivity : AppCompatActivity() {
                     engineVideoActive = false
                 } catch (e: Exception) {
                     // ExoPlayer path failed → try engine WebView IFrame (works in background via overlay)
+                    engineVideoActive = true
                     AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
                     pushToJs("window.__rmEngineMode && window.__rmEngineMode()")
                 }
@@ -373,6 +375,7 @@ class MainActivity : AppCompatActivity() {
         fun playUrl(url: String, title: String, artist: String, startSeconds: Double) {
             scope.launch {
                 try {
+                    AudioService.notifTitle = title; AudioService.notifArtist = artist
                     AudioService.playGen++
                     val targetGen = AudioService.playGen
                     val p = AudioService.player ?: return@launch
@@ -553,6 +556,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
             scope.launch {
                 try {
+                    AudioService.notifTitle = title; AudioService.notifArtist = artist
                     AudioService.playGen++
                     val targetGen = AudioService.playGen
                     val pair = StreamResolver.resolveVideo(videoId, 0)
