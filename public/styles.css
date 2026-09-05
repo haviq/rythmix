@@ -721,6 +721,7 @@ html[data-theme="light"] .np-tab.active { background: #fff; color: #111; }
 .np-pane.active { display: flex; flex-direction: column; }
 #np-player.active { align-items: center; justify-content: center; gap: 18px; }
 .np-art-wrap {
+  position: relative; /* v1.7: anchor #np-vizbars (position:absolute) — sebelumnya lari ke ancestor */
   width: min(56vw, 360px); aspect-ratio: 1;
   filter: drop-shadow(0 28px 50px rgba(0, 0, 0, 0.55));
   transition: transform 0.45s ease;

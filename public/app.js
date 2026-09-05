@@ -178,7 +178,7 @@ const Player = {
   speed: 1,
   sbSegments: [],
   sbSkipped: 0, // cumulative seconds auto-skipped via SponsorBlock
-  sbEnabled: store.get('sb_on', true),
+  sbEnabled: store.get('sb_on', false), // v1.6: default OFF — diaktifkan manual
   hq: store.get('yt_hq', false), // false = YouTube Music audio, true = YouTube max quality
   videoMode: store.get('vid_mode', false), // v1.4: true = play with video (native PlayerView)
   quality: 'hd720',
@@ -609,7 +609,7 @@ function startCurrent() {
     $('#np-lyric-preview').textContent = '';
     syncFloatLyric('');
   } else loadLyrics(s);
-  loadSponsorBlock(s.videoId);
+  if (Player.sbEnabled) loadSponsorBlock(s.videoId); else { Player.sbSegments = []; Player.sbSkipped = 0; }
   // pre-warm upcoming queue URLs (silent) so clicking next is instant
   try {
     Player.queue.slice(Player.index + 1, Player.index + 4).forEach(function(q) {
@@ -2275,7 +2275,7 @@ function backupLibrary() {
     settings: {
       theme: store.get('theme', 'dark'),
       vol: store.get('vol', 100),
-      sb_on: store.get('sb_on', true),
+      sb_on: store.get('sb_on', false),
       yt_hq: store.get('yt_hq', false),
     },
   };
@@ -3078,6 +3078,10 @@ window.__rmVideoToggle = function(on) {
   store.set('vid_mode', Player.videoMode);
   renderMoreMenu && renderMoreMenu();
 };
+// v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
+window.__rmEngineVideoMode = function(on) {
+  if (on) toast('Mode video: ON');
+};
 function toggleVisualizer() {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) { toast('Visualizer hanya di aplikasi Android'); return; }
   Player.vizOn = !Player.vizOn;
@@ -3105,6 +3109,10 @@ window.__rmWave = function(bars) {
     const el = viz.children[i];
     if (el) el.style.height = Math.max(4, Math.min(64, 32 + bars[i] / 2)) + '%';
   }
+};
+// mic granted (runtime callback) → confirm viz attached
+window.__rmMicGranted = function() {
+  if (Player.vizOn) toast('Mikrofon diizinkan — visualizer aktif 🎵');
 };
 /* local file playback (MP4/MP3/M4A) — Library page */
 function openLocalFileDialog(name) {
