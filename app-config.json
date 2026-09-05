@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 39,
-    "versionName": "1.3",
+    "versionCode": 40,
+    "versionName": "1.4",
     "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
-    "notes": "v1.3: runtime permission RECORD_AUDIO untuk visualizer"
+    "notes": "v1.4: EQ slider vertikal fix, visualizer retry, mode Video, download multi-format (mp3/m4a/webm/opus/flac/wav/mp4)"
   },
   "maintenance": {
     "enabled": false,
