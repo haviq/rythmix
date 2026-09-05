@@ -77,7 +77,9 @@ class AudioService : Service() {
 
         fun attachAudioFx(sessionId: Int) {
             val svc = fxService ?: return
-            if (sessionId <= 0) return
+            var sid = sessionId
+            if (sid <= 0) sid = player?.audioSessionId ?: 0
+            if (sid <= 0) return
             if (fxSessionId != 0 && fxSessionId != sessionId) {
                 // stale fx from a dead audio session — drop them
                 try { eq?.release() } catch (_: Exception) {}
@@ -88,13 +90,13 @@ class AudioService : Service() {
             val recGranted = android.os.Build.VERSION.SDK_INT < 23 ||
                 androidx.core.content.ContextCompat.checkSelfPermission(svc, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             try {
-                if (eq == null) eq = android.media.audiofx.Equalizer(0, sessionId)
+                if (eq == null) eq = android.media.audiofx.Equalizer(0, sid)
                 // v1.4.1: Equalizer created DISABLED — band levels do nothing until enabled
                 eq?.let { if (!it.enabled) it.enabled = true }
             } catch (e: Exception) { android.util.Log.w("RM_FX", "EQ attach failed", e) }
             try {
                 if (viz == null && recGranted) {
-                    viz = android.media.audiofx.Visualizer(sessionId)
+                    viz = android.media.audiofx.Visualizer(sid)
                     viz?.captureSize = android.media.audiofx.Visualizer.getCaptureSizeRange()[1]
                     viz?.setDataCaptureListener(
                         object : android.media.audiofx.Visualizer.OnDataCaptureListener {
@@ -174,6 +176,12 @@ class AudioService : Service() {
         p.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state == Player.STATE_READY && (eq == null || viz == null)) attachAudioFx(p.audioSessionId)
+            }
+            // v1.8: onWave tetap null saat attach sebelum vizOn(true) → re-attach tanpa duplikasi
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying && viz != null && viz?.enabled == false) {
+                    try { viz?.enabled = true } catch (_: Exception) {}
+                }
             }
             // v1.7: sink re-init (focus loss, device change) → session id BARU; EQ/viz lama
             // menempel ke session mati = no output. Re-attach ke id terbaru.
@@ -304,14 +312,14 @@ class AudioService : Service() {
             val wm = windowManager ?: return
             val params = wv.layoutParams as? android.view.WindowManager.LayoutParams ?: return
             if (on) {
+                // v1.8: windowed 40% tinggi di ATAS — app + lirik tetap terlihat & touchable di bawah
+                val dm = resources.displayMetrics
                 params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.height = (dm.heightPixels * 0.40f).toInt()
                 params.x = 0
                 params.y = 0
-                params.flags = params.flags and
-                    (android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv())
                 wm.updateViewLayout(wv, params)
-                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='position:fixed;left:0;top:0;width:100vw;height:100vh';})()")
+                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:fixed;left:0;top:0;width:100vw;height:40vh';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='position:fixed;left:0;top:0;width:100vw;height:40vh';})()")
             } else {
                 params.width = 200
                 params.height = 200

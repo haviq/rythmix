@@ -497,6 +497,13 @@ class MainActivity : AppCompatActivity() {
                 // v1.4: ensure viz object exists & enabled (permission may have arrived after first READY)
                 AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                 try { AudioService.viz?.enabled = true } catch (_: Exception) {}
+                // v1.8: session mungkin belum siap saat toggle pertama — retry sekali setelah 1.2s
+                if (AudioService.viz == null) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
+                        try { AudioService.viz?.enabled = true } catch (_: Exception) {}
+                    }, 1200)
+                }
             } else {
                 try { AudioService.viz?.enabled = false } catch (_: Exception) {}
             }
