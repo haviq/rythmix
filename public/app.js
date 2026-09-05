@@ -3057,13 +3057,13 @@ function toggleVideoMode() {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) { toast('Mode video hanya di aplikasi Android'); return; }
   Player.videoMode = !Player.videoMode;
   store.set('vid_mode', Player.videoMode);
-  window.RichMusicBridge.setVideoMode(Player.videoMode);
   if (Player.videoMode && Player.current && Player.current.videoId) {
-    // restart current track with video stream, keep position
+    // v1.4.1: native shows surface only after video resolve succeeds — no black screen on failure
     const pos = (window.__rmState && window.__rmState.time) || 0;
     window.RichMusicBridge.playVideo(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
     toast('Mode video: ON');
   } else if (!Player.videoMode) {
+    window.RichMusicBridge.setVideoMode(false);
     if (Player.current && Player.current.videoId) {
       const pos = (window.__rmState && window.__rmState.time) || 0;
       window.RichMusicBridge.play(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
@@ -3072,6 +3072,12 @@ function toggleVideoMode() {
   }
   renderMoreMenu && renderMoreMenu();
 }
+// native → JS sync (back button exits video, or resolve failed → audio fallback)
+window.__rmVideoToggle = function(on) {
+  Player.videoMode = !!on;
+  store.set('vid_mode', Player.videoMode);
+  renderMoreMenu && renderMoreMenu();
+};
 function toggleVisualizer() {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) { toast('Visualizer hanya di aplikasi Android'); return; }
   Player.vizOn = !Player.vizOn;
@@ -3085,7 +3091,9 @@ function toggleVisualizer() {
     $('#np-art-wrap').appendChild(viz);
   } else if (!Player.vizOn && viz) viz.remove();
   if (Player.vizOn && window.RichMusicBridge.vizReady && !window.RichMusicBridge.vizReady()) {
-    toast('Visualizer belum aktif — izinkan Mikrofon di Settings HP → Apps → Rythmix → Permissions');
+    // v1.4.1: re-prompt Mic permission instead of dead-end toast
+    if (window.RichMusicBridge.requestMic) { window.RichMusicBridge.requestMic(); toast('Izinkan Mikrofon untuk visualizer'); }
+    else toast('Visualizer butuh izin Mikrofon — aktifkan di Settings → Apps → Rythmix');
   } else {
     toast(Player.vizOn ? 'Visualizer on' : 'Visualizer off');
   }
