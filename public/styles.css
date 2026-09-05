@@ -128,6 +128,40 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .splash-logo, .splash-name { animation: none; }
 }
+/* ---------- v2.3 motion kit: entrance + press feedback (promax smooth) ---------- */
+@keyframes rm-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes rm-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes rm-shimmer { from { background-position: -200px 0; } to { background-position: 200px 0; } }
+/* konten view masuk halus */
+#view > * { animation: rm-rise .28s cubic-bezier(.22,1,.36,1) both; }
+/* kartu stagger — max 12 item pertama biar ringan */
+.lib-grid > *:nth-child(-n+12), .track-list > *:nth-child(-n+12), .carousel > *:nth-child(-n+12) { animation: rm-rise .3s cubic-bezier(.22,1,.36,1) both; }
+.lib-grid > *:nth-child(2), .track-list > *:nth-child(2), .carousel > *:nth-child(2) { animation-delay: .03s; }
+.lib-grid > *:nth-child(3), .track-list > *:nth-child(3), .carousel > *:nth-child(3) { animation-delay: .06s; }
+.lib-grid > *:nth-child(4), .track-list > *:nth-child(4), .carousel > *:nth-child(4) { animation-delay: .09s; }
+.lib-grid > *:nth-child(5), .track-list > *:nth-child(5), .carousel > *:nth-child(5) { animation-delay: .12s; }
+.lib-grid > *:nth-child(n+6), .track-list > *:nth-child(n+6), .carousel > *:nth-child(n+6) { animation-delay: .15s; }
+/* modal + toast pop */
+.modal-card { animation: rm-pop .22s cubic-bezier(.22,1,.36,1) both; }
+#toast.show { animation: rm-pop .2s cubic-bezier(.22,1,.36,1) both; }
+/* press feedback: semua tombol menyusut dikit saat ditekan */
+button:active, .card:active, .lib-row:active { transform: scale(.97); }
+button, .card, .lib-row { transition: transform .15s ease, background .2s, color .18s; }
+/* skeleton loading shimmer */
+.loading-note, .mus-loading {
+  background: linear-gradient(90deg, var(--card) 25%, var(--card-hover) 50%, var(--card) 75%);
+  background-size: 400px 100%; animation: rm-shimmer 1.2s infinite linear;
+  border-radius: 8px; min-height: 20px;
+}
+/* EQ preset chips */
+.eq-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.eq-presets .chip.active { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 700; }
+/* matikan semua animasi bila user minta hemat gerak */
+@media (prefers-reduced-motion: reduce) {
+  #view > *, .lib-grid > *, .track-list > *, .carousel > *, .modal-card, #toast.show { animation: none; }
+  button:active, .card:active, .lib-row:active { transform: none; }
+  .loading-note, .mus-loading { animation: none; }
+}
 
 /* ---------- sidebar ---------- */
 #sidebar {

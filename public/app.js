@@ -556,6 +556,10 @@ function startCurrent() {
   const s = Player.current;
   if (!s) return;
   const loadId = ++Player.loadId;
+  // v2.3: crossfade — fade-out lagu lama 600ms SEBELUM load baru (gapless terasa mulus)
+  const xfSec = Number(store.get('rm_xfade', 0)) || 0;
+  const doLoad = () => {
+    if (loadId !== Player.loadId) return;
   const tryPlay = () => {
     if (loadId !== Player.loadId) return;
     if (!Player.ready) return setTimeout(tryPlay, 300);
@@ -627,6 +631,21 @@ function startCurrent() {
   if ($('#np-related').classList.contains('active') && !$('#nowplaying').classList.contains('hidden')) {
     setTimeout(() => loadRelated(true), 150);
   }
+  }; // end doLoad
+  // v2.3: crossfade schedule — fade-out lagu lama lalu load baru; tanpa xfade langsung load
+  if (xfSec > 0 && Player.yt && Player.ready) {
+    try {
+      const steps = 6;
+      const baseVol = (() => { try { return Number($('#vol-slider')?.value ?? 100); } catch { return 100; } })();
+      let n = 0;
+      const fi = setInterval(() => {
+        if (loadId !== Player.loadId) { clearInterval(fi); return; }
+        n++;
+        try { Player.yt.setVolume(baseVol * (1 - n / steps)); } catch {}
+        if (n >= steps) { clearInterval(fi); try { Player.yt.setVolume(baseVol); } catch {} doLoad(); }
+      }, Math.round((xfSec * 1000) / steps));
+    } catch { doLoad(); }
+  } else doLoad();
 }
 
 async function fetchQueue(song) {
@@ -2140,19 +2159,32 @@ function viewStats(view) {
 }
 
 /* ---- Settings & Downloads ---- */
+function xfadeLabel() {
+  const v = Number(store.get('rm_xfade', 0)) || 0;
+  return v <= 0 ? 'Off' : v + 's';
+}
+function toggleXfade() {
+  const order = [0, 2, 4, 6];
+  const cur = Number(store.get('rm_xfade', 0)) || 0;
+  const ni = (order.indexOf(cur) + 1) % order.length;
+  store.set('rm_xfade', order[ni]);
+  toast('Crossfade: ' + xfadeLabel());
+}
 function viewSettings(view) {
   const row = (id, ic, label, val) =>
     `<button class="lib-row" data-set="${id}">${icon(ic)}<div class="lr-meta"><div class="lr-t">${label}</div><div class="lr-s" data-val="${id}">${val}</div></div></button>`;
   view.innerHTML = `<div class="page-title">Pengaturan</div>
     ${row('theme', 'i-sun', 'Tema', document.documentElement.getAttribute('data-theme') === 'light' ? 'Light' : 'Dark')}
     ${row('quality', 'i-expand', 'Kualitas audio', Player.hq ? 'Max' : 'YouTube Music')}
+    ${row('xfade', 'i-shuffle', 'Crossfade antar lagu', xfadeLabel())}
     ${row('sb', 'i-next', 'SponsorBlock', Player.sbEnabled ? 'On' : 'Off')}
     ${row('stats', 'i-clock', 'Statistik dengar', '')}
-    <div class="sidebar-footer" style="padding-top:20px">Rythmix Music v1.6</div>`;
+    <div class="sidebar-footer" style="padding-top:20px">Rythmix Music v2.3</div>`;
   $$('[data-set]', view).forEach((b) => b.addEventListener('click', () => {
     const a = b.dataset.set;
     if (a === 'theme') toggleTheme();
     else if (a === 'quality') toggleQuality();
+    else if (a === 'xfade') toggleXfade();
     else if (a === 'sb') toggleSB();
     else if (a === 'stats') { go('#/stats'); return; }
     else return;
@@ -3026,7 +3058,21 @@ function openEqualizer() {
     return;
   }
   const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
-  body.innerHTML = `<div class="pl-form-hint">Geser naik/turun untuk menyetel.</div>
+  // v2.3: preset sekali tap (nilai fraksi dari range, -1..1)
+  const EQ_PRESETS = {
+    'Flat': [0, 0, 0, 0, 0],
+    'Bass Boost': [0.7, 0.45, 0.1, -0.1, 0.15],
+    'Vocal': [-0.25, -0.1, 0.25, 0.5, 0.3],
+    'Rock': [0.5, 0.3, -0.15, 0.25, 0.45],
+    'Jazz': [0.35, 0.2, 0.05, 0.3, 0.2],
+    'Pop': [0.15, 0.3, 0.35, 0.2, 0.05],
+    'Classical': [0.3, 0.15, -0.1, 0.2, 0.35],
+  };
+  const savedPreset = localStorage.getItem('rm_eq_preset') || 'Flat';
+  body.innerHTML = `<div class="pl-form-hint">Pilih preset atau geser manual.</div>
+    <div class="eq-presets" id="eq-presets">
+      ${Object.keys(EQ_PRESETS).map((p) => `<button type="button" class="chip${p === savedPreset ? ' active' : ''}" data-p="${p}">${p}</button>`).join('')}
+    </div>
     <div class="eq-wrap" id="eq-wrap">
       ${data.bands.map((b, i) => `
         <div class="eq-band">
@@ -3083,9 +3129,37 @@ function openEqualizer() {
   });
   $('#eq-reset').addEventListener('click', () => {
     body.querySelectorAll('.eq-vslider').forEach((sl) => setBand(sl, 0));
+    body.querySelectorAll('#eq-presets .chip').forEach((c) => c.classList.toggle('active', c.dataset.p === 'Flat'));
+    localStorage.setItem('rm_eq_preset', 'Flat');
+  });
+  // v2.3: klik preset → set semua band + simpan
+  const applyPreset = (name, silent) => {
+    const vals = EQ_PRESETS[name];
+    if (!vals) return;
+    body.querySelectorAll('.eq-vslider').forEach((sl) => {
+      const i = Number(sl.dataset.i);
+      const lo = +sl.dataset.lo, hi = +sl.dataset.hi;
+      setBand(sl, Math.round(vals[i] * (vals[i] >= 0 ? hi : -lo)));
+    });
+    body.querySelectorAll('#eq-presets .chip').forEach((c) => c.classList.toggle('active', c.dataset.p === name));
+    localStorage.setItem('rm_eq_preset', name);
+    if (!silent) toast('EQ: ' + name);
+  };
+  body.querySelectorAll('#eq-presets .chip').forEach((c) => {
+    c.addEventListener('click', () => applyPreset(c.dataset.p));
+  });
+  // v2.3: geser manual = preset custom
+  const _setBand = setBand;
+  body.querySelectorAll('.eq-vslider').forEach((sl) => {
+    sl.addEventListener('pointerdown', () => {
+      body.querySelectorAll('#eq-presets .chip').forEach((c) => c.classList.remove('active'));
+      localStorage.setItem('rm_eq_preset', 'Custom');
+    }, { once: true });
   });
   $('#eq-done').addEventListener('click', closeModal);
   modal.classList.remove('hidden');
+  // v2.3: terapkan preset tersimpan otomatis saat dialog dibuka
+  if (savedPreset && savedPreset !== 'Flat' && EQ_PRESETS[savedPreset]) applyPreset(savedPreset, true);
 }
 function toggleVideoMode() {
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) { toast('Mode video hanya di aplikasi Android'); return; }
