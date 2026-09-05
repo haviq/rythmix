@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 42,
-    "versionName": "1.5",
-    "url": "https://github.com/haviq/rythmix/releases/download/v1.5/rythmix.apk",
-    "notes": "v1.5: FIX video mode blank hitam (TextureView), equalizer aktif, visualizer lebih responsif + re-prompt izin mic, notifikasi baru (artwork + tombol prev/next/play/pause)"
+    "versionCode": 43,
+    "versionName": "1.6",
+    "url": "https://github.com/haviq/rythmix/releases/download/v1.6/rythmix.apk",
+    "notes": "v1.6: FIX mode video (muxed+adaptive DASH), FIX visualizer & equalizer (mic callback attach), SponsorBlock default OFF"
   },
   "maintenance": {
     "enabled": false,
