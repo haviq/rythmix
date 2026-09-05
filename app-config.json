@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 49,
-    "versionName": "2.2",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.2/rythmix.apk",
-    "notes": "v2.2: FIX judul notif mode video, recent search rapi, lirik sync engine, caption fallback + cari-manual lirik"
+    "versionCode": 50,
+    "versionName": "2.3",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.3/rythmix.apk",
+    "notes": "v2.3: EQ preset 7, crossfade 0/2/4/6s, motion kit promax (entrance, press feedback, shimmer)"
   },
   "maintenance": {
     "enabled": false,
