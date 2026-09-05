@@ -866,6 +866,17 @@ async function loadLyrics(song, { silent = false } = {}) {
       const fb = await fallbackLrclib(title, artist);
       if (fb) { d = fb; }
     }
+    // v2.2: caption fallback — subtitle video itu sendiri (cover/remake yg judulnya
+    // beda total dari judul asli). Dipanggil saat semua katalog teks gagal.
+    if (!d || (!d.synced && !d.plain)) {
+      try {
+        const vid = song.videoId || (Player.current && Player.current.videoId) || '';
+        if (vid) {
+          const cap = await api(`/api/captions?v=${encodeURIComponent(vid)}`);
+          if (cap && cap.synced) d = { synced: cap.synced, plain: null, source: cap.source || 'YouTube captions' };
+        }
+      } catch {}
+    }
     if (!d || (!d.synced && !d.plain)) {
       if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
     } else {
@@ -928,11 +939,34 @@ function renderLyrics() {
     c.innerHTML = `<div class="lyric-plain">${esc(L.plain)}</div>`;
   } else {
     c.innerHTML = `<div class="lyrics-empty">No lyrics found for this track<br><br>
-      <button class="pill-btn" id="lyrics-retry">${icon('i-repeat')}<span>Try again</span></button></div>`;
+      <button class="pill-btn" id="lyrics-retry">${icon('i-repeat')}<span>Try again</span></button>
+      <button class="pill-btn" id="lyrics-manual">${icon('i-search')}<span>Cari manual</span></button></div>`;
     const rb = $('#lyrics-retry', c);
     if (rb) rb.addEventListener('click', () => {
       Player._lyricsRetried = false;
       loadLyrics(Player.current);
+    });
+    // v2.2: cari manual — prompt judul+artis (cover/remake yg judul uploadnya beda total)
+    const mb = $('#lyrics-manual', c);
+    if (mb) mb.addEventListener('click', async () => {
+      const s = Player.current;
+      if (!s) return;
+      const q = prompt('Cari lirik sebagai (format: Judul - Artis):', `${s.title || ''} - ${s.artist || ''}`);
+      if (!q || !q.trim()) return;
+      const parts = q.split(/\s+-\s+/);
+      const t = (parts[0] || '').trim(), a = (parts.slice(1).join(' - ') || '').trim();
+      if (!t) return;
+      c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+      try {
+        const d = await api(`/api/lyrics?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}&duration=${Player._lyricsDur || 0}`);
+        if (d && (d.synced || d.plain)) {
+          Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
+        } else {
+          Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
+          toast('Lirik tidak ketemu — coba kata kunci lain');
+        }
+      } catch { toast('Gagal mencari lirik'); }
+      renderLyrics();
     });
   }
   src.textContent = L.source ? `Lyrics provided by ${L.source}` : '';

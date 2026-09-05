@@ -339,6 +339,30 @@ html[data-theme="light"] .quick-card:hover { background: rgba(0, 0, 0, 0.09); }
   font-size: 22px; font-weight: 800; margin-bottom: 14px;
   letter-spacing: -0.03em; display: flex; align-items: center; justify-content: space-between;
 }
+/* v2.2: recent searches rapi — chip wrap dgn gap, teks panjang di-ellipsis, max 3 baris */
+.recent-head { font-size: 16px; }
+.recent-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  max-height: 132px; overflow: hidden; margin-bottom: 6px;
+}
+.recent-chip {
+  display: inline-flex; align-items: center; gap: 2px;
+  max-width: 100%; padding: 6px 6px 6px 10px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--border);
+}
+.recent-go {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0; max-width: 220px; padding: 0 4px 0 0;
+  background: none; border: 0; color: var(--text); font-size: 13px; cursor: pointer;
+}
+.recent-go span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-go svg { flex: 0 0 auto; opacity: .55; }
+.recent-x {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer;
+}
+.recent-x:hover { color: var(--text); background: var(--hover); }
 .carousel-wrap { position: relative; }
 .carousel {
   display: grid; grid-auto-flow: column; grid-auto-columns: 186px;

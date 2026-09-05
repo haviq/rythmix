@@ -762,6 +762,59 @@ function extractYtmLyrics(d) {
   return null;
 }
 
+/* v2.2: caption fallback — lirik dari subtitle video itu sendiri (timedtext).
+   Menangkap cover/remake yang judul uploadnya beda total dari judul asli
+   (semua katalog teks gagal), SELAMA uploader menyertakan subtitle/lirik. */
+function parseTimedtext(xml) {
+  const lines = [];
+  const re = /<text[^>]*start="([\d.]+)"[^>]*dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const t = parseFloat(m[1]);
+    const txt = m[3].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/\n+/g, ' ').trim();
+    if (txt) lines.push({ t, text: txt });
+  }
+  // gabung cue duplikat/berulang (karaoke word-by-word → satu baris per detik)
+  const out = [];
+  for (const l of lines) {
+    const last = out[out.length - 1];
+    if (last && l.t - last.t < 1.2) last.text = (last.text + ' ' + l.text).trim();
+    else out.push({ ...l });
+  }
+  return out;
+}
+app.get('/api/captions', async (req, res) => {
+  const videoId = String(req.query.v || '');
+  if (!/^[\w-]{6,20}$/.test(videoId)) return res.status(400).json({ error: 'bad id' });
+  try {
+    const r = await fetchTimeout(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { 'User-Agent': HEADERS['User-Agent'], 'Accept-Language': 'id,en;q=0.8' },
+    }, 6000);
+    if (!r.ok) return res.json({ synced: null });
+    const html = await r.text();
+    const m = html.match(/"captionTracks":\s*(\[.*?\])\s*,\s*"audioTracks"/s) || html.match(/"captionTracks":(\[.+?\]),"videoDetails"/s);
+    if (!m) return res.json({ synced: null });
+    let tracks;
+    try { tracks = JSON.parse(m[1]); } catch { return res.json({ synced: null }); }
+    if (!Array.isArray(tracks) || !tracks.length) return res.json({ synced: null });
+    // pilih track manual (bukan auto-generated) bila ada; prefer id/en
+    const manual = tracks.filter((t) => t.kind !== 'asr');
+    const pick = manual.find((t) => /^(id|en)/i.test(t.languageCode || '')) || manual[0]
+      || tracks.find((t) => /^(id|en)/i.test(t.languageCode || '')) || tracks[0];
+    if (!pick || !pick.baseUrl) return res.json({ synced: null });
+    const cr = await fetchTimeout(pick.baseUrl, { headers: { 'User-Agent': HEADERS['User-Agent'] } }, 6000);
+    if (!cr.ok) return res.json({ synced: null });
+    const xml = await cr.text();
+    const lines = parseTimedtext(xml);
+    if (lines.length < 4) return res.json({ synced: null });
+    const synced = lines.map((l) => {
+      const mm = Math.floor(l.t / 60), ss = (l.t % 60).toFixed(2).padStart(5, '0');
+      return `[${mm}:${ss}]${l.text}`;
+    }).join('\n');
+    res.json({ synced, source: 'YouTube captions' });
+  } catch (e) { res.json({ synced: null }); }
+});
+
 app.get('/api/lyrics', async (req, res) => {
   const { title = '', artist = '', duration = 0, browseId = '' } = req.query;
   try {
