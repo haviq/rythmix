@@ -477,13 +477,11 @@ class AudioService : Service() {
             })
             .addAction(R.drawable.ic_notif_close, "Stop", pi(ACTION_STOP, 1))
 
-        // MediaStyle → artwork (from MediaMetadata.artworkUri) + compact shows prev/play/next
-        if (player != null && session != null) {
-            val style = androidx.media.app.NotificationCompat.MediaStyle()
-                .setMediaSession(session!!.sessionCompatToken)
-                .setShowActionsInCompactView(0, 1, 2)
-            builder.setStyle(style)
-        }
+        // v2.0: MediaStyle TANPA session token — Android 11+ menimpa judul & tombol dari
+        // MediaSession metadata (judul "acak", tombol custom ilang). Tanpa token, judul/tombol
+        // dari builder ini yang dipakai. (Artwork notif dikorbankan — konsistensi > gambar.)
+        builder.setStyle(androidx.media.app.NotificationCompat.MediaStyle()
+            .setShowActionsInCompactView(0, 1, 2))
         return builder.build()
     }
 
