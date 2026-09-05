@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 41,
-    "versionName": "1.4.1",
-    "url": "https://github.com/haviq/rythmix/releases/latest/download/rythmix.apk",
-    "notes": "v1.4.1: FIX video mode blank hitam (TextureView), equalizer sekarang aktif, visualizer retry izin mic + lebih responsif, notifikasi baru: artwork + tombol prev/next/play/pause"
+    "versionCode": 42,
+    "versionName": "1.5",
+    "url": "https://github.com/haviq/rythmix/releases/download/v1.5/rythmix.apk",
+    "notes": "v1.5: FIX video mode blank hitam (TextureView), equalizer aktif, visualizer lebih responsif + re-prompt izin mic, notifikasi baru (artwork + tombol prev/next/play/pause)"
   },
   "maintenance": {
     "enabled": false,
