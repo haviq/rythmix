@@ -95,36 +95,51 @@ object StreamResolver {
         return pool.maxByOrNull { it.averageBitrate }
     }
 
-    // muxed MP4 video streams (progressive: audio+video satu file — bisa buat playback & download)
-    private fun viaNewPipeVideo(videoId: String, resolution: Int): String {
+    // muxed progressive (itag 18/22/37) = format MPEG_4 di videoStreams (M4A = audio-only mp4, bukan video!)
+    private fun resOf(s: org.schabi.newpipe.extractor.stream.VideoStream): Int =
+        s.resolution.filter(Char::isDigit).toIntOrNull() ?: 0
+
+    private fun viaNewPipeVideo(videoId: String, resolution: Int): VideoPair {
         ensureInit()
         val yt = ServiceList.YouTube
         val info = NPStreamInfo.getInfo(yt, "https://www.youtube.com/watch?v=$videoId")
-        // ponytail: VideoStream gak punya flag muxed; M4A = container audio+video (progressive itag 18/22/37).
         val muxed = info.videoStreams.filter {
-            it.format == org.schabi.newpipe.extractor.MediaFormat.M4A && it.resolution.contains(Regex("\\d+p"))
+            it.format == org.schabi.newpipe.extractor.MediaFormat.MPEG_4 && resOf(it) > 0
         }
-        if (muxed.isEmpty()) throw IllegalStateException("no muxed video")
-        val want = if (resolution <= 0) muxed.maxByOrNull { it.resolution.filter(Char::isDigit).toIntOrNull() ?: 0 }
-                   else muxed.minByOrNull { kotlin.math.abs((it.resolution.filter(Char::isDigit).toIntOrNull() ?: 9999) - resolution) }
-        return (want ?: muxed.first()).content
+        if (muxed.isNotEmpty()) {
+            val want = if (resolution <= 0) muxed.maxByOrNull { resOf(it) }
+                       else muxed.minByOrNull { kotlin.math.abs(resOf(it) - resolution) }
+            return VideoPair((want ?: muxed.first()).content, null)
+        }
+        // v1.6: fallback adaptive — video-only DASH (≤1080p) digabung audio via MergingMediaSource
+        val vOnly = info.videoOnlyStreams.filter { resOf(it) > 0 }
+        if (vOnly.isEmpty()) throw IllegalStateException("no video stream")
+        val pool = vOnly.filter { resOf(it) <= 1080 }.ifEmpty { vOnly }
+        val v = if (resolution <= 0) pool.maxByOrNull { resOf(it) } ?: pool.first()
+                else pool.minByOrNull { kotlin.math.abs(resOf(it) - resolution) } ?: pool.first()
+        val a = pickAudio(info.audioStreams) ?: throw IllegalStateException("no audio stream")
+        return VideoPair(v.content, a.content)
     }
 
-    suspend fun resolveVideo(videoId: String, resolution: Int = 0): String = withContext(Dispatchers.IO) {
-        val key = "v$videoId@$resolution"
-        val now = System.currentTimeMillis()
-        val hit = cache[key]
-        if (hit != null && now - hit.second < CACHE_MS) return@withContext hit.first
-        var fresh: String? = null
-        var last: Exception? = null
-        repeat(3) {
-            try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
+    /** video = muxed URL (audio=null), atau video-only + audio utk MergingMediaSource. */
+    data class VideoPair(val video: String, val audio: String?)
+
+    suspend fun resolveVideo(videoId: String, resolution: Int = 0, muxedOnly: Boolean = false): VideoPair =
+        withContext(Dispatchers.IO) {
+            val key = "${if (muxedOnly) "m" else "v"}$videoId@$resolution"
+            val now = System.currentTimeMillis()
+            val hit = cache[key]
+            if (hit != null && now - hit.second < CACHE_MS) return@withContext VideoPair(hit.first, null)
+            var fresh: VideoPair? = null
+            var last: Exception? = null
+            repeat(3) {
+                try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
+            }
+            val f = fresh ?: throw (last ?: IllegalStateException("video resolve failed"))
+            cache[key] = f.video to now
+            persist()
+            f
         }
-        val f = fresh ?: throw (last ?: IllegalStateException("video resolve failed"))
-        cache[key] = f to now
-        persist()
-        f
-    }
 
     private fun viaNewPipe(videoId: String): String {
         ensureInit()

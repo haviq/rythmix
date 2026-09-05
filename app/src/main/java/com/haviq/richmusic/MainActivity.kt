@@ -169,6 +169,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // v1.6: mic granted → attach EQ/Visualizer SEKARANG (dulu tak ada callback → viz mati selamanya)
+        if (requestCode == 4242 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
+            pushToJs("window.__rmMicGranted && window.__rmMicGranted()")
+        }
+    }
+
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (videoMode) { // back exits video first, keeps playing audio
@@ -523,19 +532,33 @@ class MainActivity : AppCompatActivity() {
                 try {
                     AudioService.playGen++
                     val targetGen = AudioService.playGen
-                    val url = StreamResolver.resolveVideo(videoId, 0)
+                    val pair = StreamResolver.resolveVideo(videoId, 0)
                     val p = AudioService.player ?: return@launch
                     if (targetGen != AudioService.playGen) return@launch
-                    p.setMediaItem(
-                        androidx.media3.common.MediaItem.Builder()
-                            .setUri(Uri.parse(url))
-                            .setMediaMetadata(
-                                androidx.media3.common.MediaMetadata.Builder()
-                                    .setTitle(title).setArtist(artist).build()
-                            )
-                            .build(),
-                        (startSeconds * 1000).toLong()
-                    )
+                    val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
+                    if (pair.audio != null) {
+                        // v1.6: adaptive DASH — video-only + audio-only digabung (muxed sering gak ada)
+                        val aItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.audio))
+                        val vSrc = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+                            androidx.media3.datasource.DefaultDataSource.Factory(this@MainActivity)
+                        ).createMediaSource(vItem)
+                        val aSrc = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+                            androidx.media3.datasource.DefaultDataSource.Factory(this@MainActivity)
+                        ).createMediaSource(aItem)
+                        val merged = androidx.media3.exoplayer.source.MergingMediaSource(vSrc, aSrc)
+                        p.setMediaSource(merged, (startSeconds * 1000).toLong())
+                    } else {
+                        p.setMediaItem(
+                            androidx.media3.common.MediaItem.Builder()
+                                .setUri(Uri.parse(pair.video))
+                                .setMediaMetadata(
+                                    androidx.media3.common.MediaMetadata.Builder()
+                                        .setTitle(title).setArtist(artist).build()
+                                )
+                                .build(),
+                            (startSeconds * 1000).toLong()
+                        )
+                    }
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
@@ -554,7 +577,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun downloadVideo(videoId: String, title: String, resolution: Int) {
             scope.launch {
                 try {
-                    val url = StreamResolver.resolveVideo(videoId, resolution)
+                    val url = StreamResolver.resolveVideo(videoId, resolution, muxedOnly = true).video
                     val safe = title.replace(Regex("[^\\w \\-]"), "").trim().ifBlank { videoId }
                     val req = android.app.DownloadManager.Request(Uri.parse(url))
                         .setTitle("$safe (${resolution}p)")

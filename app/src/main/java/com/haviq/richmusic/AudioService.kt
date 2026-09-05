@@ -80,7 +80,7 @@ class AudioService : Service() {
                 if (eq == null) eq = android.media.audiofx.Equalizer(0, sessionId)
                 // v1.4.1: Equalizer created DISABLED — band levels do nothing until enabled
                 eq?.let { if (!it.enabled) it.enabled = true }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { android.util.Log.w("RM_FX", "EQ attach failed", e) }
             try {
                 if (viz == null && recGranted) {
                     viz = android.media.audiofx.Visualizer(sessionId)
@@ -98,7 +98,7 @@ class AudioService : Service() {
                     )
                     viz?.enabled = true // start capture immediately; vizOn() toggles off
                 }
-            } catch (_: Exception) { viz = null }
+            } catch (e: Exception) { viz = null; android.util.Log.w("RM_FX", "Viz attach failed", e) }
         }
 
         fun youtubeState(p: ExoPlayer?): Int {
