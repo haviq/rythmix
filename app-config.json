@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 53,
-    "versionName": "2.6",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.6/rythmix.apk",
-    "notes": "v2.6: lirik auto-sync (intro & mode video), video web tanpa watermark + ikut player, APK video fix ketumpuk, viz fallback"
+    "versionCode": 54,
+    "versionName": "2.7",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.7/rythmix.apk",
+    "notes": "v2.7: video di kotak thumbnail (bukan fullscreen), mode video persist saat ganti lagu, lirik sinkron semua lagu"
   },
   "maintenance": {
     "enabled": false,
