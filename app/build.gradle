@@ -11,8 +11,8 @@ android {
         applicationId "com.haviq.richmusic"
         minSdk 24
         targetSdk 36
-        versionCode 55
-        versionName "2.8"
+        versionCode 56
+        versionName "2.9"
     }
     lint {
         checkReleaseBuilds false

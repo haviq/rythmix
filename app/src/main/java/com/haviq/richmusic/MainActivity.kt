@@ -343,6 +343,10 @@ class MainActivity : AppCompatActivity() {
         @Volatile private var lastTitle: String? = null
         @Volatile private var lastArtist: String? = null
         @Volatile private var playRequested = false
+        // v2.9: true = play()/prepare() sedang resolve lagu (2-7s). resume()/pause()
+        // mid-resolve tidak boleh nyentuh player — dulu pause() nyetel state lagu lama,
+        // resume() pas STATE_ENDED replay item lama → "ganti musik tetap lagu lama".
+        @Volatile var resolving = false
         // v1.7: engine YT-iframe video fallback aktif — kontrol native di-route ke engine.
         // v2.1: setter sinkronkan mirror flag ke AudioService (toggle notif ikut engine).
         @Volatile var engineVideoActive = false
@@ -375,10 +379,11 @@ class MainActivity : AppCompatActivity() {
                     AudioService.playGen++
                     AudioService.mediaGen = AudioService.playGen
                     AudioService.player?.stop()
+                    resolving = true
                     val targetGen = AudioService.playGen
                     val info = StreamResolver.resolve(videoId, title, artist)
-                    val p = AudioService.player ?: return@launch
-                    if (targetGen != AudioService.playGen) return@launch
+                    val p = AudioService.player ?: run { resolving = false; return@launch }
+                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     p.setMediaItem(
                         androidx.media3.common.MediaItem.Builder()
                             .setUri(Uri.parse(info.url))
@@ -395,11 +400,13 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
+                    resolving = false
                     engineVideoActive = false
                     // v2.4: re-attach EQ/viz tiap lagu — stop()+setMediaItem bisa
                     // re-init sink dgn session id baru; object lama = no efek.
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                 } catch (e: Exception) {
+                    resolving = false
                     // ExoPlayer path failed → try engine WebView IFrame (works in background via overlay)
                     engineVideoActive = true
                     AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
@@ -450,11 +457,12 @@ class MainActivity : AppCompatActivity() {
             scope.launch {
                 try {
                     playRequested = false
+                    resolving = true // v2.9: cued resolve in-flight → resume() nunggu prepare selesai
                     AudioService.playGen++
                     val targetGen = AudioService.playGen
                     val info = StreamResolver.resolve(videoId, title, artist)
-                    val p = AudioService.player ?: return@launch
-                    if (targetGen != AudioService.playGen) return@launch
+                    val p = AudioService.player ?: run { resolving = false; return@launch }
+                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     lastVideoId = videoId
                     lastTitle = title; lastArtist = artist
                     p.setMediaItem(
@@ -472,19 +480,23 @@ class MainActivity : AppCompatActivity() {
                     )
                     p.prepare()
                     AudioService.mediaGen = targetGen
+                    resolving = false // v2.9
                     if (playRequested) { playRequested = false; p.play() }
                 } catch (e: Exception) {
+                    resolving = false
                     AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
                 }
             }
         }
 
         @JavascriptInterface fun seekTo(seconds: Double) {
+            if (resolving) return // v2.9: seek mid-resolve = target item lama
             if (engineVideoActive) { AudioService.engineSeek(seconds); return }
             scope.launch { AudioService.player?.seekTo((seconds * 1000).toLong()) }
         }
 
         @JavascriptInterface fun pause() {
+            if (resolving) return // v2.9: pause mid-resolve = state lagu lama bocor ke UI
             if (engineVideoActive) { AudioService.enginePause(); return }
             scope.launch {
                 AudioService.player?.pause()
@@ -498,11 +510,12 @@ class MainActivity : AppCompatActivity() {
             scope.launch {
                 try {
                     playRequested = false
+                    resolving = true // v2.9
                     AudioService.playGen++
                     val targetGen = AudioService.playGen
                     val pair = StreamResolver.resolveVideo(videoId, 0)
-                    val p = AudioService.player ?: return@launch
-                    if (targetGen != AudioService.playGen) return@launch
+                    val p = AudioService.player ?: run { resolving = false; return@launch }
+                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     lastVideoId = videoId; lastTitle = title; lastArtist = artist
                     val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
                     if (pair.audio != null) {
@@ -526,8 +539,11 @@ class MainActivity : AppCompatActivity() {
                     }
                     p.prepare()
                     AudioService.mediaGen = targetGen
+                    resolving = false // v2.9
+                    if (playRequested) { playRequested = false; p.play() } // v2.9: resume mid-resolve → play
                 } catch (e: Exception) {
                     // video gagal → tetap prepare audio; videoMode tetap ON (lagu berikut coba video lagi)
+                    resolving = false
                     playRequested = false
                     play(videoId, title, artist, startSeconds)
                 }
@@ -536,6 +552,7 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface fun resume() {
             if (engineVideoActive) { AudioService.enginePlay(); return }
+            if (resolving) { playRequested = true; return } // v2.9: resume mid-resolve = play setelah prepare, jangan replay item lama
             scope.launch {
                 val p = AudioService.player ?: return@launch
                 // v4.0.2: gens out of sync = old song's resume racing a fresh play() — drop it
@@ -653,12 +670,17 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
             scope.launch {
                 try {
+                    // v2.9: stop lagu lama SEKARANG — resolve video 2-7s, dulu lagu lama
+                    // jalan terus sampai resolve selesai (= "ganti musik tetep lagu lama")
                     AudioService.notifTitle = title; AudioService.notifArtist = artist
                     AudioService.playGen++
+                    AudioService.mediaGen = AudioService.playGen
+                    AudioService.player?.stop()
+                    resolving = true
                     val targetGen = AudioService.playGen
                     val pair = StreamResolver.resolveVideo(videoId, 0)
-                    val p = AudioService.player ?: return@launch
-                    if (targetGen != AudioService.playGen) return@launch
+                    val p = AudioService.player ?: run { resolving = false; return@launch }
+                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
                     if (pair.audio != null) {
                         // v1.6: adaptive DASH — video-only + audio-only digabung (muxed sering gak ada)
@@ -686,9 +708,11 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
+                    resolving = false
                     // v1.4.1: show surface only AFTER resolve succeeded — no black hole on failure
                     setVideoModeUi(true)
                 } catch (e: Exception) {
+                    resolving = false
                     // v2.7: resolve video gagal (PO-token block dll) → lanjut AUDIO,
                     // tapi videoMode TETAP ON — lagu berikutnya otomatis coba video lagi.
                     // (dulu: lempar ke engine overlay fullscreen → ngeblok layar)
