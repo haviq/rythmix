@@ -363,13 +363,18 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun play(videoId: String, title: String, artist: String, startSeconds: Double) {
+            // v3.0: resolving disetel SINKRON di sini (bukan dlm coroutine Main) — JS manggil
+            // resume() nyaris bersamaan dgn play(); kalau nunggu coroutine, guard kelewat
+            // → replay item lama ("ganti musik tetap lagu pertama").
+            playRequested = false
+            resolving = true
             scope.launch {
                 try {
                     val p0 = AudioService.player
                     if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
                         p0.currentMediaItem?.localConfiguration?.uri != null) {
                         val cur = lastVideoId
-                        if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) return@launch
+                        if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
                     }
                     lastVideoId = videoId
                     lastTitle = title; lastArtist = artist
@@ -417,6 +422,8 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun playUrl(url: String, title: String, artist: String, startSeconds: Double) {
+            playRequested = false
+            resolving = true // v3.0: sync guard
             scope.launch {
                 try {
                     AudioService.notifTitle = title; AudioService.notifArtist = artist
@@ -444,6 +451,7 @@ class MainActivity : AppCompatActivity() {
                     val dur = p.duration / 1000
                     pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, $dur)")
                 } catch (e: Exception) {
+                    resolving = false // v3.0
                     AudioService.onError?.invoke(e.message ?: "play failed")
                 }
             }
@@ -454,6 +462,8 @@ class MainActivity : AppCompatActivity() {
             // v2.7: videoMode aktif → cued track juga pakai jalur video (resolve muxed+prepare, no play).
             // (dulu: cue selalu audio → resume nyalain audio padahal mode video)
             if (videoMode) { prepareVideo(videoId, title, artist, startSeconds); return }
+            playRequested = false
+            resolving = true // v3.0: sync guard — race dgn resume() sebelum coroutine Main jalan
             scope.launch {
                 try {
                     playRequested = false
@@ -787,7 +797,7 @@ class MainActivity : AppCompatActivity() {
             scope.launch { AudioService.player?.playbackParameters = androidx.media3.common.PlaybackParameters(r.toFloat(), 1f) }
         }
 
-        @JavascriptInterface fun stop() { AudioService.player?.stop() }
+        @JavascriptInterface fun stop() { AudioService.player?.stop(); AudioService.player?.clearMediaItems() } // v3.0: clear item — stop() nyisain lagu lama, resume() bisa replay
         @JavascriptInterface fun isPlaying(): Boolean = AudioService.player?.isPlaying == true
         @JavascriptInterface fun getCurrentTime(): Double = (AudioService.player?.currentPosition ?: 0L) / 1000.0
         @JavascriptInterface fun getDuration(): Double = (AudioService.player?.duration ?: 0L) / 1000.0
