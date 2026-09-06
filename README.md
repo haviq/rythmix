@@ -2,7 +2,6 @@
 
 **Pemutar musik web gratis** dengan tampilan bergaya Spotify dan katalog berbasis YouTube Music. Tanpa akun.
 
-- **Website:** https://rythmix-puce.vercel.app/
 - **Repository:** https://github.com/haviq/rythmix
 - **Telegram:** https://t.me/haviq
 
