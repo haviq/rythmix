@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 51,
-    "versionName": "2.4",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.4/rythmix.apk",
-    "notes": "v2.4: FIX EQ ngefek tiap lagu, visualizer hidup terus (simulasi saat engine-mode), vizReady dibetulkan"
+    "versionCode": 52,
+    "versionName": "2.5",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.5/rythmix.apk",
+    "notes": "v2.5: EQ/Viz/Video dipencet beneran jalan — EQ More-menu kebuka, viz simulasi di web, video mode web + retryOverlay APK"
   },
   "maintenance": {
     "enabled": false,
