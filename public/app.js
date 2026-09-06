@@ -2620,11 +2620,12 @@ function openNowPlayingMore() {
     ${row('sb', 'i-next', Player.sbEnabled ? 'SponsorBlock on' : 'SponsorBlock')}`;
   $$('[data-npact]', body).forEach((b) => b.addEventListener('click', () => {
     const a = b.dataset.npact;
-    if (a === 'dl') pickDownloadFormat(song);
+    // v2.5: dl & eq buka modal sendiri — JANGAN closeModal (dulu dialog EQ langsung ketutup lagi = "dipencet ga muncul apa-apa")
+    if (a === 'dl') { pickDownloadFormat(song); return; }
+    else if (a === 'eq') { openEqualizer(); return; }
     else if (a === 'share') shareSong(song);
     else if (a === 'artist') goToArtist(song);
     else if (a === 'speed') cycleSpeed();
-    else if (a === 'eq') openEqualizer();
     else if (a === 'viz') toggleVisualizer();
     else if (a === 'video') toggleVideoMode();
     else if (a === 'float') toggleFloatWidget();
@@ -3042,7 +3043,18 @@ $('#np-speed').addEventListener('click', cycleSpeed);
 
 /* ================= Equalizer + Visualizer + Local file (v1.1) ================= */
 function openEqualizer() {
-  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.eqBands) { toast('Equalizer hanya di aplikasi Android'); return; }
+  // v2.5: web pakai EQ built-in YouTube (iframe) — tidak ada EQ software, jujur ke user
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.eqBands) {
+    const modal = $('#modal');
+    const body = $('#modal-body');
+    $('#modal-title').textContent = 'Equalizer';
+    $('.modal-actions')?.classList.add('hidden');
+    body.innerHTML = `<div class="pl-form-hint">Equalizer software hanya tersedia di aplikasi Android (memakai audio engine ExoPlayer). Di web, audio diputar lewat player YouTube resmi — gunakan pengaturan suara browser/perangkat.</div>
+      <div class="pl-form-actions"><button type="button" class="pill-btn primary" id="eq-done">OK</button></div>`;
+    $('#eq-done').addEventListener('click', closeModal);
+    modal.classList.remove('hidden');
+    return;
+  }
   const modal = $('#modal');
   const body = $('#modal-body');
   $('#modal-title').textContent = 'Equalizer';
@@ -3166,10 +3178,25 @@ function openEqualizer() {
   if (savedPreset && savedPreset !== 'Flat' && EQ_PRESETS[savedPreset]) applyPreset(savedPreset, true);
 }
 function toggleVideoMode() {
-  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) { toast('Mode video hanya di aplikasi Android'); return; }
+  // v2.5: web juga bisa — iframe YT tampil sebagai panel video
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) {
+    Player.videoMode = !Player.videoMode;
+    store.set('vid_mode', Player.videoMode);
+    document.body.classList.toggle('show-video', Player.videoMode);
+    if (Player.videoMode) {
+      // pause posisi? iframe tetap jalan — cukup tampilkan; pastikan lagu ter-load
+      if (Player.current && Player.current.videoId && Player.yt && Player.ready) {
+        try { Player.yt.loadVideoById(Player.current.videoId, (window.__rmState && window.__rmState.time) || 0); } catch {}
+      }
+      toast('Mode video: ON');
+    } else toast('Mode audio: ON');
+    return;
+  }
   Player.videoMode = !Player.videoMode;
   store.set('vid_mode', Player.videoMode);
   if (Player.videoMode && Player.current && Player.current.videoId) {
+    // v2.5: coba attach overlay dulu — gagal = video jelas tidak jalan
+    try { if (window.RichMusicBridge.retryOverlay && !window.RichMusicBridge.retryOverlay()) { toast('❌ Mode video butuh izin overlay — aktifkan di Settings → Apps → Rythmix'); Player.videoMode = false; store.set('vid_mode', false); return; } } catch {}
     // v1.4.1: native shows surface only after video resolve succeeds — no black screen on failure
     const pos = (window.__rmState && window.__rmState.time) || 0;
     window.RichMusicBridge.playVideo(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
@@ -3188,6 +3215,7 @@ function toggleVideoMode() {
 window.__rmVideoToggle = function(on) {
   Player.videoMode = !!on;
   store.set('vid_mode', Player.videoMode);
+  document.body.classList.toggle('show-video', !!on && !window.__nativeMode);
   renderMoreMenu && renderMoreMenu();
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
@@ -3195,7 +3223,20 @@ window.__rmEngineVideoMode = function(on) {
   if (on) toast('Mode video: ON');
 };
 function toggleVisualizer() {
-  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) { toast('Visualizer hanya di aplikasi Android'); return; }
+  // v2.5: web tidak punya waveform (iframe YT tak kasih akses audio) — pakai simulasi yg sama dgn engine mode
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.vizOn) {
+    Player.vizOn = !Player.vizOn;
+    let viz = $('#np-vizbars');
+    if (Player.vizOn && !viz) {
+      viz = document.createElement('div');
+      viz.id = 'np-vizbars';
+      for (let i = 0; i < 24; i++) viz.appendChild(document.createElement('i'));
+      $('#np-art-wrap').appendChild(viz);
+      vizSimStart();
+    } else if (!Player.vizOn && viz) { viz.remove(); vizSimStop(); }
+    toast(Player.vizOn ? 'Visualizer on (simulasi)' : 'Visualizer off');
+    return;
+  }
   Player.vizOn = !Player.vizOn;
   window.RichMusicBridge.vizOn(Player.vizOn);
   $('#np-viz').classList.toggle('on', Player.vizOn);
@@ -3238,9 +3279,9 @@ function vizSimStart() {
   _vizSimTimer = setInterval(() => {
     const viz = $('#np-vizbars');
     if (!viz || !Player.vizOn) { vizSimStop(); return; }
-    let eng = false;
-    try { eng = !!(window.__nativeMode && window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
-    if (!eng) { vizSimStop(); return; } // kembali ke waveform asli
+    let eng = true; // web = selalu simulasi (iframe tak kasih akses audio)
+    try { eng = !(window.__nativeMode && window.RichMusicBridge.engineMode) || !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
+    if (!eng) { vizSimStop(); return; } // native ExoPlayer → kembali ke waveform asli
     const playing = window.__rmPlaying || (Player.yt && Player.ready && Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING);
     const t = Date.now() / 300;
     for (let i = 0; i < 24; i++) {

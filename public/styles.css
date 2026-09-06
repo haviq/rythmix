@@ -1182,6 +1182,19 @@ body.hq-audio #yt-player {
   width: 1920px !important;
   height: 1080px !important;
 }
+/* v2.5: web video mode — iframe YT tampil sebagai panel video di atas konten */
+body.show-video #yt-holder {
+  opacity: 1; pointer-events: auto; z-index: 60;
+  left: 50%; top: 84px; transform: translateX(-50%);
+  width: min(94vw, 640px); height: auto; aspect-ratio: 16/9;
+  border-radius: 12px; overflow: hidden;
+  box-shadow: 0 28px 60px rgba(0,0,0,.55);
+}
+body.show-video #yt-holder iframe,
+body.show-video #yt-player {
+  width: 100% !important; height: 100% !important;
+  position: absolute; inset: 0;
+}
 
 .skeleton {
   background: linear-gradient(90deg, var(--card) 25%, var(--card-hover) 50%, var(--card) 75%);
