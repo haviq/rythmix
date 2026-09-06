@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 50,
-    "versionName": "2.3",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.3/rythmix.apk",
-    "notes": "v2.3: EQ preset 7, crossfade 0/2/4/6s, motion kit promax (entrance, press feedback, shimmer)"
+    "versionCode": 51,
+    "versionName": "2.4",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.4/rythmix.apk",
+    "notes": "v2.4: FIX EQ ngefek tiap lagu, visualizer hidup terus (simulasi saat engine-mode), vizReady dibetulkan"
   },
   "maintenance": {
     "enabled": false,
