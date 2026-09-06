@@ -719,9 +719,11 @@ function pickBest(cands, title, artist, duration) {
     let score = tScore * 2 + simScore(c.artistName, artist);
     if (dur && c.duration) {
       const diff = Math.abs(c.duration - dur);
-      if (diff <= 2) score += 1.2;
-      else if (diff <= 5) score += 0.6;
-      else if (diff > 20) score -= 1;
+      if (diff <= 2) score += 1.5;
+      else if (diff <= 5) score += 0.8;
+      // v2.9: versi beda jauh (live/shorts/speed-up edit) — penalti keras, jangan menang
+      else if (diff > 60) score -= 1.5;
+      else if (diff > 20) score -= 0.8;
     }
     if (c.syncedLyrics) score += 0.8;
     if (score > bestScore) { bestScore = score; best = c; }
@@ -856,6 +858,12 @@ app.get('/api/lyrics', async (req, res) => {
       lrclibGet(tUse, aUse, 0),
       title && title !== tUse ? lrclibGet(cleanTitle(title), pa, 0) : null,
     ]);
+    // v2.9: duration valid → kandidat dgn durasi pas menang ABSOLUT di atas versi salah.
+    const durNum = Number(duration) || 0;
+    if (durNum && synced) {
+      const right = exactHits.find((h) => h && h.syncedLyrics && Math.abs((Number(h.duration) || 0) - durNum) <= 5);
+      if (right) { synced = right.syncedLyrics; plain = right.plainLyrics || null; source = 'LRCLIB'; }
+    }
     for (const hit of exactHits) {
       if (!hit) continue;
       synced = synced || hit.syncedLyrics || null;

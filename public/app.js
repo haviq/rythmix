@@ -911,17 +911,19 @@ async function loadLyrics(song, { silent = false } = {}) {
       fb = await fallbackLrclib(title, artist);
       if (fb) d = fb;
     }
-    // v2.6: caption-vs-katalog — kalau durasi kandidat beda jauh dari video (>15s),
-    // lirik katalog salah versi → caption video sendiri lebih sinkron (timestamp asli video).
-    // Coba caption DULU, katalog jadi fallback.
+    // v2.9: cek versi-salah via timestamp LRC sendiri (bukan cuma jalur fallback).
+    // Baris terakhir LRC harus dekat durasi video: beda >32s (di luar jangkauan
+    // auto-offset ≤30s) atau LRC lebih panjang dari video = versi beda → caption
+    // video (timestamp asli) menang. Intro ≤30s tetap ditangani auto-offset.
     try {
       const vd = Player._lyricsDur || ((Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration())) || 0);
       const vid = song.videoId || (Player.current && Player.current.videoId) || '';
-      if (fb && fb.duration && vd && Math.abs(fb.duration - vd) > 15 && vid) {
+      const lastT = d && d.synced ? ((parseLRC(d.synced).slice(-1)[0]) || {}).t : 0;
+      if (d && d.synced && vd && lastT && vid && (lastT > vd + 5 || vd - lastT > 32)) {
         try {
           const cap = await api(`/api/captions?v=${encodeURIComponent(vid)}`);
           if (cap && cap.synced) d = { synced: cap.synced, plain: null, source: cap.source || 'YouTube captions' };
-          // caption gagal → d tetap fb (katalog beda versi, offset manual tersedia)
+          // caption gagal → d tetap (offset manual tersedia)
         } catch {}
       }
     } catch {}
@@ -958,7 +960,12 @@ function maybeRetryLyrics() {
   if (!dur) return;
   const noLyrics = !Player.lyrics.synced && !Player.lyrics.plain;
   const durChanged = Math.abs(dur - (Player._lyricsDur || 0)) > 2;
-  if ((noLyrics || (durChanged && !Player.lyrics.synced)) && !Player._lyricsRetried) {
+  // v2.9: synced tapi versi beda (LRC terakhir jauh dari durasi video) → re-fetch
+  // dengan durasi asli — server pilih versi pas. Sekali saja (flag retried).
+  const lines = Player.lyrics.synced ? parseLRC(Player.lyrics.synced) : [];
+  const lastT = lines.length ? lines[lines.length - 1].t : 0;
+  const wrongVersion = !!lastT && (lastT > dur + 5 || dur - lastT > 32);
+  if ((noLyrics || (durChanged && !Player.lyrics.synced) || wrongVersion) && !Player._lyricsRetried) {
     Player._lyricsRetried = true;
     loadLyrics(s, { silent: true });
   }
