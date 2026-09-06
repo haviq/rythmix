@@ -3058,6 +3058,9 @@ function openEqualizer() {
     return;
   }
   const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
+  // v2.4: engine mode = audio keluar dari iframe, EQ Android tidak tersentuh → jujur ke user.
+  let engineMode = false;
+  try { engineMode = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
   // v2.3: preset sekali tap (nilai fraksi dari range, -1..1)
   const EQ_PRESETS = {
     'Flat': [0, 0, 0, 0, 0],
@@ -3070,6 +3073,7 @@ function openEqualizer() {
   };
   const savedPreset = localStorage.getItem('rm_eq_preset') || 'Flat';
   body.innerHTML = `<div class="pl-form-hint">Pilih preset atau geser manual.</div>
+    ${engineMode ? `<div class="pl-form-hint" style="color:var(--accent)">⚠ Lagu ini jalan via mode video-engine — EQ Android tidak berlaku. Matikan mode video untuk EQ.</div>` : ''}
     <div class="eq-presets" id="eq-presets">
       ${Object.keys(EQ_PRESETS).map((p) => `<button type="button" class="chip${p === savedPreset ? ' active' : ''}" data-p="${p}">${p}</button>`).join('')}
     </div>
@@ -3202,6 +3206,12 @@ function toggleVisualizer() {
     for (let i = 0; i < 24; i++) viz.appendChild(document.createElement('i'));
     $('#np-art-wrap').appendChild(viz);
   } else if (!Player.vizOn && viz) viz.remove();
+  if (Player.vizOn) {
+    // v2.4: engine mode → simulasi; ExoPlayer → waveform asli
+    let eng = false;
+    try { eng = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
+    if (eng) vizSimStart();
+  } else vizSimStop();
   if (Player.vizOn && window.RichMusicBridge.vizReady && !window.RichMusicBridge.vizReady()) {
     // v1.4.1: re-prompt Mic permission instead of dead-end toast
     if (window.RichMusicBridge.requestMic) { window.RichMusicBridge.requestMic(); toast('Izinkan Mikrofon untuk visualizer'); }
@@ -3218,6 +3228,32 @@ window.__rmWave = function(bars) {
     if (el) el.style.height = Math.max(4, Math.min(64, 32 + bars[i] / 2)) + '%';
   }
 };
+// v2.4: visualizer simulasi — engine mode tidak ada waveform (ExoPlayer stop).
+// Bar digerakkan pseudo-random halus tiap 120ms selama PLAYING, biar viz tetap hidup.
+let _vizSimTimer = null;
+function vizSimStart() {
+  vizSimStop();
+  let seed = 1;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  _vizSimTimer = setInterval(() => {
+    const viz = $('#np-vizbars');
+    if (!viz || !Player.vizOn) { vizSimStop(); return; }
+    let eng = false;
+    try { eng = !!(window.__nativeMode && window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
+    if (!eng) { vizSimStop(); return; } // kembali ke waveform asli
+    const playing = window.__rmPlaying || (Player.yt && Player.ready && Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING);
+    const t = Date.now() / 300;
+    for (let i = 0; i < 24; i++) {
+      const el = viz.children[i];
+      if (!el) continue;
+      const v = playing
+        ? 32 + 22 * Math.sin(t + i * 0.7) * rnd() + 10 * Math.sin(t * 2.3 + i)
+        : 6;
+      el.style.height = Math.max(4, Math.min(64, v)) + '%';
+    }
+  }, 120);
+}
+function vizSimStop() { if (_vizSimTimer) { clearInterval(_vizSimTimer); _vizSimTimer = null; } }
 // mic granted (runtime callback) → confirm viz attached
 window.__rmMicGranted = function() {
   if (Player.vizOn) toast('Mikrofon diizinkan — visualizer aktif 🎵');
