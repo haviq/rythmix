@@ -355,6 +355,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       var artist = (s && s.artist) || '';
       // ponytail: reset stale state — old song's dur must not pollute first lyrics query
       _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
+      window.Player._lyricsDur = 0; // v2.8: durasi lagu baru ≠ lagu lama → auto-offset boleh recompute
       // native path: bridge.play resolves via NewPipe Extractor in-app (~1-2s), no loader.to
       // fallback: JS resolves via download API if NewPipe fails (__rmNativeFallback)
       // v2.7: videoMode persist — play saat videoMode aktif → playVideo langsung
@@ -973,20 +974,31 @@ function parseLRC(lrc) {
   return lines.sort((a, b) => a.t - b.t);
 }
 function lyOffKey() { return 'rm_loff_' + (Player.current && Player.current.videoId || ''); }
-/* v2.7: auto-offset intro — dipanggil dari loadLyrics (web, durasi sudah ada)
-   dan dari tick (APK, durasi baru diketahui setelah PLAYING). Manual offset selalu menang. */
-function applyAutoOffset() {
+/* v2.8: offset manual kini pakai marker terpisah (rm_lman_) — dulu nilai auto disimpan
+   ke key yang sama dgn manual, jadi v2.8 tak bisa recompute offset auto yang lama/salah. */
+function lyManKey() { return 'rm_lman_' + (Player.current && Player.current.videoId || ''); }
+/* v2.8: auto-offset intro — recompute BERULANG (durasi bisa telat datang / berubah kualitas).
+   Offset manual user selalu menang (marker rm_lman_). */
+function applyAutoOffset(force) {
   const L = Player.lyrics;
   if (!L.lines.length) return false;
-  if (localStorage.getItem(lyOffKey())) return false; // user sudah set manual
+  if (localStorage.getItem(lyManKey())) return false; // user sudah set manual
   // v2.7: caption video sudah sinkron dengan timeline video — jangan digeser
   if (String(L.source || '').toLowerCase().includes('caption')) return false;
   const lastT = L.lines[L.lines.length - 1].t;
   const dur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration() || 0)) || 0;
+  if (!dur) return false;
+  // v2.8: LRC pas dgn timeline (audio studio / caption) → offset 0.
+  // (dulu: offset dari sesi video tersisa saat balik audio → lirik molor, tak pernah dikoreksi)
+  if (lastT > 30 && dur >= lastT && dur < lastT + 4) {
+    if (Player.lyricOffset !== 0) { Player.lyricOffset = 0; localStorage.setItem(lyOffKey(), '0'); return true; }
+    return false;
+  }
+  // MV dgn intro: selisih durasi video vs LRC = intro → geser lirik maju
   if (lastT > 30 && dur > lastT + 4 && dur < lastT + 60) {
-    Player.lyricOffset = Math.min(30, Math.round((dur - lastT - 2) * 10) / 10);
-    localStorage.setItem(lyOffKey(), Player.lyricOffset);
-    return true;
+    const o = Math.min(30, Math.round((dur - lastT - 2) * 10) / 10);
+    if (o !== Player.lyricOffset) { Player.lyricOffset = o; localStorage.setItem(lyOffKey(), String(o)); return true; }
+    return false;
   }
   return false;
 }
@@ -997,6 +1009,7 @@ function syncLyricOffsetUI() {
 function adjLyricOffset(d) {
   Player.lyricOffset = Math.min(30, Math.max(-30, Math.round((Player.lyricOffset + d) * 10) / 10));
   localStorage.setItem(lyOffKey(), Player.lyricOffset);
+  localStorage.setItem(lyManKey(), '1'); // v2.8: manual marker — auto tak akan menimpa lagi
   syncLyricOffsetUI();
   updateLyricHighlight((Player.yt && Player.yt.getCurrentTime()) || 0);
 }
@@ -3341,14 +3354,10 @@ function toggleVisualizer() {
     $('#np-art-wrap').appendChild(viz);
   } else if (!Player.vizOn && viz) viz.remove();
   if (Player.vizOn) {
-    // v2.4: engine mode → simulasi; ExoPlayer → waveform asli
-    // v2.6: viz object null (izin telat/session 0) → simulasi juga, jangan mati diam.
-    // Bar asli otomatis ambil alih saat __rmWave pertama datang (vizSim* berhenti sendiri).
-    let eng = false;
-    try { eng = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
-    let ready = false;
-    try { ready = !!(window.RichMusicBridge.vizReady && window.RichMusicBridge.vizReady()); } catch {}
-    if (eng || !ready) vizSimStart();
+    // v2.8: simulasi SELALU jadi lapisan dasar — dulu syarat (engineMode || !vizReady)
+    // bikin layar mati kalau vizReady()==true tapi callback wave mati (session beda/izinkan per revoked).
+    // Waveform asli (jika hidup) menimpa per-bar; sim otomatis lanjut kalau wave berhenti >1.2s.
+    vizSimStart();
   } else vizSimStop();
   if (Player.vizOn && window.RichMusicBridge.vizReady && !window.RichMusicBridge.vizReady()) {
     // v1.4.1: re-prompt Mic permission instead of dead-end toast
@@ -3361,7 +3370,7 @@ function toggleVisualizer() {
 window.__rmWave = function(bars) {
   const viz = $('#np-vizbars');
   if (!viz || !Player.vizOn) return;
-  vizSimStop(); // v2.6: waveform asli datang → matikan simulasi, pakai data real
+  window.__rmWaveAt = Date.now(); // v2.8: real data freshness — sim melanjutkan jika wave mati
   for (let i = 0; i < 24; i++) {
     const el = viz.children[i];
     if (el) el.style.height = Math.max(4, Math.min(64, 32 + bars[i] / 2)) + '%';
@@ -3377,8 +3386,8 @@ function vizSimStart() {
   _vizSimTimer = setInterval(() => {
     const viz = $('#np-vizbars');
     if (!viz || !Player.vizOn) { vizSimStop(); return; }
-    // v2.6: JANGAN berhenti sendiri — __rmWave yg matikan simulasi saat waveform asli datang.
-    // (dulu: stop saat ExoPlayer mode → viz mati total padahal viz object null)
+    // v2.8: waveform asli segar (<1.2s lalu) → tick ini biarkan data real yg menggerakkan bar
+    if (window.__rmWaveAt && Date.now() - window.__rmWaveAt < 1200) return;
     const playing = window.__rmPlaying || (Player.yt && Player.ready && Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING);
     const t = Date.now() / 300;
     for (let i = 0; i < 24; i++) {
@@ -3392,9 +3401,12 @@ function vizSimStart() {
   }, 120);
 }
 function vizSimStop() { if (_vizSimTimer) { clearInterval(_vizSimTimer); _vizSimTimer = null; } }
-// mic granted (runtime callback) → confirm viz attached
+// mic granted (runtime callback) → confirm viz attached + restart sim layer if idle
 window.__rmMicGranted = function() {
-  if (Player.vizOn) toast('Mikrofon diizinkan — visualizer aktif 🎵');
+  if (!Player.vizOn) return;
+  toast('Mikrofon diizinkan — visualizer aktif 🎵');
+  try { window.RichMusicBridge.vizOn(true); } catch {}
+  vizSimStart(); // pastikan layar bergerak sampai wave real datang
 };
 /* local file playback (MP4/MP3/M4A) — Library page */
 function openLocalFileDialog(name) {
