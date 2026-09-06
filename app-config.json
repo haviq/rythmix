@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 56,
-    "versionName": "2.9",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.9/rythmix-v2.9.apk",
-    "notes": "v2.9: ganti lagu macet saat mode video, lirik versi-salah ditolak otomatis"
+    "versionCode": 57,
+    "versionName": "3.0",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.0/rythmix-v3.0.apk",
+    "notes": "v3.0: ganti lagu bener, tap art/judul = play, lirik langsung pas"
   },
   "maintenance": {
     "enabled": false,
