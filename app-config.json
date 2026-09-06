@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 52,
-    "versionName": "2.5",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.5/rythmix.apk",
-    "notes": "v2.5: EQ/Viz/Video dipencet beneran jalan — EQ More-menu kebuka, viz simulasi di web, video mode web + retryOverlay APK"
+    "versionCode": 53,
+    "versionName": "2.6",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.6/rythmix.apk",
+    "notes": "v2.6: lirik auto-sync (intro & mode video), video web tanpa watermark + ikut player, APK video fix ketumpuk, viz fallback"
   },
   "maintenance": {
     "enabled": false,
