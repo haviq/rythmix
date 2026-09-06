@@ -267,6 +267,8 @@ window.onYouTubeIframeAPIReady = () => {
         const v = store.get('vol', 100);
         Player.yt.setVolume(Number(v));
         applyPlaybackQuality();
+        // v2.6: restore video mode web — iframe pindah ke panel NP
+        try { if (Player.videoMode && !window.__nativeMode) { document.body.classList.add('show-video'); moveWebVideo(true); } } catch {}
         try {
           const iframe = Player.yt.getIframe && Player.yt.getIframe();
           if (iframe) iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
@@ -754,9 +756,18 @@ function toggleNowPlayingPlay() {
 
 /* progress loop */
 let _lastTick = null;
+let _lastCur = 0, _lastCurAt = 0; // v2.6: interpolasi antar tick native (250ms) biar highlight lirik mulus
+function smoothCur(raw) {
+  const now = Date.now();
+  if (raw !== _lastCur) { _lastCur = raw; _lastCurAt = now; return raw; }
+  // nilai sama = tick belum datang — majukan estimasi max 300ms (jangan lari sendiri saat pause)
+  const playing = window.__nativeMode ? !!window.__rmPlaying : (Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING);
+  if (!playing) return raw;
+  return raw + Math.min(0.3, (now - _lastCurAt) / 1000);
+}
 setInterval(() => {
   if (!Player.yt || !Player.ready || !Player.current || !Player.yt.getDuration) return;
-  const cur = Player.yt.getCurrentTime() || 0;
+  const cur = smoothCur(Player.yt.getCurrentTime() || 0);
   // local scrobble: accumulate listen time while playing
   const playing = Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING;
   const now = Date.now();
@@ -838,8 +849,9 @@ let lyricsReqId = 0; // guard against out-of-order responses on fast skips
 /* Client-side LRCLIB fallback — covers cover/less-common tracks the server proxy misses.
    No API key; CORS is open on lrclib.net. Used only when /api/lyrics returns nothing. */
 async function fallbackLrclib(title, artist) {
+  const dur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration())) || Player._lyricsDur || '';
   const tries = [
-    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=`,
+    `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=${dur}`,
     `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`,
     `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}`,
   ];
@@ -852,7 +864,8 @@ async function fallbackLrclib(title, artist) {
       if (!hit) continue;
       const synced = hit.syncedLyrics || null;
       const plain = hit.plainLyrics || null;
-      if (synced || plain) return { synced, plain, source: 'LRCLIB' };
+      // v2.6: simpan durasi kandidat biar auto-offset intro bisa jalan juga dari jalur ini
+      if (synced || plain) return { synced, plain, source: 'LRCLIB', duration: hit.duration || 0 };
     } catch {}
   }
   return null;
@@ -880,11 +893,26 @@ async function loadLyrics(song, { silent = false } = {}) {
     } catch { d = null; }
     if (myReq !== lyricsReqId) return;
     if (Player.lyrics.synced && d && !d.synced) return; // never downgrade
+    // server missed it — try LRCLIB directly (covers covers / auto-gen tracks)
+    let fb = null;
     if (!d || (!d.synced && !d.plain)) {
-      // server missed it — try LRCLIB directly (covers covers / auto-gen tracks)
-      const fb = await fallbackLrclib(title, artist);
-      if (fb) { d = fb; }
+      fb = await fallbackLrclib(title, artist);
+      if (fb) d = fb;
     }
+    // v2.6: caption-vs-katalog — kalau durasi kandidat beda jauh dari video (>15s),
+    // lirik katalog salah versi → caption video sendiri lebih sinkron (timestamp asli video).
+    // Coba caption DULU, katalog jadi fallback.
+    try {
+      const vd = Player._lyricsDur || ((Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration())) || 0);
+      const vid = song.videoId || (Player.current && Player.current.videoId) || '';
+      if (fb && fb.duration && vd && Math.abs(fb.duration - vd) > 15 && vid) {
+        try {
+          const cap = await api(`/api/captions?v=${encodeURIComponent(vid)}`);
+          if (cap && cap.synced) d = { synced: cap.synced, plain: null, source: cap.source || 'YouTube captions' };
+          // caption gagal → d tetap fb (katalog beda versi, offset manual tersedia)
+        } catch {}
+      }
+    } catch {}
     // v2.2: caption fallback — subtitle video itu sendiri (cover/remake yg judulnya
     // beda total dari judul asli). Dipanggil saat semua katalog teks gagal.
     if (!d || (!d.synced && !d.plain)) {
@@ -900,6 +928,18 @@ async function loadLyrics(song, { silent = false } = {}) {
       if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
     } else {
       Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
+      // v2.6: auto-offset intro — timestamp katalog patokan versi studio (tanpa intro MV),
+      // sementara yg diputar video ber-intro. Baseline = durasi video − durasi lirik terakhir,
+      // hanya bila user belum set manual utk lagu ini.
+      try {
+        const manual = localStorage.getItem(lyOffKey());
+        const lastT = Player.lyrics.lines.length ? Player.lyrics.lines[Player.lyrics.lines.length - 1].t : 0;
+        const vidDur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration())) || Player._lyricsDur || 0;
+        if (!manual && lastT > 30 && vidDur > lastT + 4 && vidDur < lastT + 60) {
+          Player.lyricOffset = Math.round((vidDur - lastT - 2) * 10) / 10;
+          localStorage.setItem(lyOffKey(), Player.lyricOffset);
+        }
+      } catch {}
     }
   } catch {
     if (myReq !== lyricsReqId) return;
@@ -3178,11 +3218,13 @@ function openEqualizer() {
   if (savedPreset && savedPreset !== 'Flat' && EQ_PRESETS[savedPreset]) applyPreset(savedPreset, true);
 }
 function toggleVideoMode() {
-  // v2.5: web juga bisa — iframe YT tampil sebagai panel video
+  // v2.6: web — iframe YT dipindah ke dalam #np-player (ikut tab & minimize),
+  // zoom-crop via CSS biar watermark/logo YT kepotong = kelihatan pure video
   if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.playVideo) {
     Player.videoMode = !Player.videoMode;
     store.set('vid_mode', Player.videoMode);
     document.body.classList.toggle('show-video', Player.videoMode);
+    try { moveWebVideo(Player.videoMode); } catch {}
     if (Player.videoMode) {
       // pause posisi? iframe tetap jalan — cukup tampilkan; pastikan lagu ter-load
       if (Player.current && Player.current.videoId && Player.yt && Player.ready) {
@@ -3190,6 +3232,7 @@ function toggleVideoMode() {
       }
       toast('Mode video: ON');
     } else toast('Mode audio: ON');
+    renderMoreMenu && renderMoreMenu();
     return;
   }
   Player.videoMode = !Player.videoMode;
@@ -3211,11 +3254,26 @@ function toggleVideoMode() {
   }
   renderMoreMenu && renderMoreMenu();
 }
+// v2.6: pindahkan iframe YT antara #yt-holder (audio tersembunyi) dan
+// #np-video-slot (video terlihat, ikut tab player & minimize). Balikin posisi
+// tiap toggle biar playback tidak terganggu.
+function moveWebVideo(on) {
+  const slot = document.getElementById('np-video-slot');
+  const holder = document.getElementById('yt-holder');
+  const frame = (Player.yt && Player.yt.getIframe && Player.yt.getIframe()) || document.getElementById('yt-player');
+  if (!slot || !holder || !frame) return;
+  if (on) {
+    if (frame.parentElement !== slot) slot.appendChild(frame);
+  } else {
+    if (frame.parentElement !== holder) holder.insertBefore(frame, holder.firstChild);
+  }
+}
 // native → JS sync (back button exits video, or resolve failed → audio fallback)
 window.__rmVideoToggle = function(on) {
   Player.videoMode = !!on;
   store.set('vid_mode', Player.videoMode);
   document.body.classList.toggle('show-video', !!on && !window.__nativeMode);
+  try { if (!window.__nativeMode) moveWebVideo(!!on); } catch {}
   renderMoreMenu && renderMoreMenu();
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
@@ -3249,9 +3307,13 @@ function toggleVisualizer() {
   } else if (!Player.vizOn && viz) viz.remove();
   if (Player.vizOn) {
     // v2.4: engine mode → simulasi; ExoPlayer → waveform asli
+    // v2.6: viz object null (izin telat/session 0) → simulasi juga, jangan mati diam.
+    // Bar asli otomatis ambil alih saat __rmWave pertama datang (vizSim* berhenti sendiri).
     let eng = false;
     try { eng = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
-    if (eng) vizSimStart();
+    let ready = false;
+    try { ready = !!(window.RichMusicBridge.vizReady && window.RichMusicBridge.vizReady()); } catch {}
+    if (eng || !ready) vizSimStart();
   } else vizSimStop();
   if (Player.vizOn && window.RichMusicBridge.vizReady && !window.RichMusicBridge.vizReady()) {
     // v1.4.1: re-prompt Mic permission instead of dead-end toast
@@ -3264,6 +3326,7 @@ function toggleVisualizer() {
 window.__rmWave = function(bars) {
   const viz = $('#np-vizbars');
   if (!viz || !Player.vizOn) return;
+  vizSimStop(); // v2.6: waveform asli datang → matikan simulasi, pakai data real
   for (let i = 0; i < 24; i++) {
     const el = viz.children[i];
     if (el) el.style.height = Math.max(4, Math.min(64, 32 + bars[i] / 2)) + '%';
@@ -3279,9 +3342,8 @@ function vizSimStart() {
   _vizSimTimer = setInterval(() => {
     const viz = $('#np-vizbars');
     if (!viz || !Player.vizOn) { vizSimStop(); return; }
-    let eng = true; // web = selalu simulasi (iframe tak kasih akses audio)
-    try { eng = !(window.__nativeMode && window.RichMusicBridge.engineMode) || !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
-    if (!eng) { vizSimStop(); return; } // native ExoPlayer → kembali ke waveform asli
+    // v2.6: JANGAN berhenti sendiri — __rmWave yg matikan simulasi saat waveform asli datang.
+    // (dulu: stop saat ExoPlayer mode → viz mati total padahal viz object null)
     const playing = window.__rmPlaying || (Player.yt && Player.ready && Player.yt.getPlayerState && Player.yt.getPlayerState() === YT.PlayerState.PLAYING);
     const t = Date.now() / 300;
     for (let i = 0; i < 24; i++) {

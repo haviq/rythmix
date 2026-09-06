@@ -1183,17 +1183,26 @@ body.hq-audio #yt-player {
   height: 1080px !important;
 }
 /* v2.5: web video mode — iframe YT tampil sebagai panel video di atas konten */
-body.show-video #yt-holder {
-  opacity: 1; pointer-events: auto; z-index: 60;
-  left: 50%; top: 84px; transform: translateX(-50%);
-  width: min(94vw, 640px); height: auto; aspect-ratio: 16/9;
-  border-radius: 12px; overflow: hidden;
-  box-shadow: 0 28px 60px rgba(0,0,0,.55);
+/* v2.6: panel pindah ke dalam nowplaying (ikut tab & minimize), crop tepi = watermark YT kepotong */
+#nowplaying #np-video {
+  display: none;
+  width: 100%; max-width: 560px; aspect-ratio: 16/9;
+  border-radius: 12px; overflow: hidden; margin: 0 auto 10px;
+  box-shadow: 0 18px 44px rgba(0,0,0,.5); background: #000;
+  position: relative;
 }
-body.show-video #yt-holder iframe,
-body.show-video #yt-player {
+body.show-video #np-player.active #np-video { display: block; }
+#nowplaying #np-video .np-video-crop {
+  position: absolute; inset: -7% -9%; /* zoom-crop: logo & judul channel kepotong */
+}
+#nowplaying #np-video .np-video-crop iframe,
+#nowplaying #np-video .np-video-crop #np-yt {
   width: 100% !important; height: 100% !important;
-  position: absolute; inset: 0;
+  position: absolute; inset: 0; border: 0;
+}
+body.show-video #yt-holder {
+  /* v2.6: panel lama tak dipakai lagi (video pindah ke dalam #np-player) — pastikan tak dobel */
+  display: none;
 }
 
 .skeleton {
