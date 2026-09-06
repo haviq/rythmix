@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 55,
-    "versionName": "2.8",
-    "url": "https://github.com/haviq/rythmix/releases/download/v2.8/rythmix.apk",
-    "notes": "v2.8: lirik sinkron tuntas (auto-kalibrasi ulang), video full-bleed gantikan thumbnail, viz pasti hidup"
+    "versionCode": 56,
+    "versionName": "2.9",
+    "url": "https://github.com/haviq/rythmix/releases/download/v2.9/rythmix-v2.9.apk",
+    "notes": "v2.9: ganti lagu macet saat mode video, lirik versi-salah ditolak otomatis"
   },
   "maintenance": {
     "enabled": false,
