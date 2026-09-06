@@ -364,6 +364,9 @@ class MainActivity : AppCompatActivity() {
                     p.play()
                     AudioService.mediaGen = targetGen
                     engineVideoActive = false
+                    // v2.4: re-attach EQ/viz tiap lagu — stop()+setMediaItem bisa
+                    // re-init sink dgn session id baru; object lama = no efek.
+                    AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                 } catch (e: Exception) {
                     // ExoPlayer path failed → try engine WebView IFrame (works in background via overlay)
                     engineVideoActive = true
@@ -397,6 +400,8 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     p.play()
                     AudioService.mediaGen = targetGen
+                    // v2.4: re-attach EQ/viz (playUrl path juga ganti media item)
+                    AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                     val dur = p.duration / 1000
                     pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, $dur)")
                 } catch (e: Exception) {
@@ -524,7 +529,9 @@ class MainActivity : AppCompatActivity() {
                 pushToJs("window.__rmWave && window.__rmWave($sb)")
             } else null
         }
-        @JavascriptInterface fun vizReady(): Boolean = try { AudioService.viz?.enabled == true } catch (_: Exception) { false }
+        @JavascriptInterface fun vizReady(): Boolean = try { AudioService.viz != null } catch (_: Exception) { false }
+        // v2.4: JS butuh tahu audio jalan di mana — EQ/viz Android mati saat engine mode.
+        @JavascriptInterface fun engineMode(): Boolean = try { engineVideoActive } catch (_: Exception) { false }
         /** v1.4.1: JS asks to (re)prompt the Mic permission — viz needs it on Android 6+. */
         @JavascriptInterface fun requestMic() {
             if (Build.VERSION.SDK_INT >= 23 &&
