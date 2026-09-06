@@ -197,8 +197,12 @@ class MainActivity : AppCompatActivity() {
     private fun setVideoModeUi(on: Boolean) {
         videoMode = on
         runOnUiThread {
+            // v2.6: SATU video tampil — playerView vs overlay engine jangan berebut.
+            // ExoPlayer on → overlay engine harus sembunyi total (dulu ketumpuk hitam).
+            if (on) AudioService.showEngineVideo(false)
             playerView?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
-            if (!on) uiWebView?.bringToFront()
+            if (on) playerView?.bringToFront()
+            else uiWebView?.bringToFront()
         }
     }
 
@@ -549,6 +553,9 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 val pv = playerView ?: return@runOnUiThread
                 if (on) {
+                    // v2.6: engine overlay harus mati total (dulu ketumpuk → video ga kelihatan)
+                    jsBridge.engineVideoActive = false
+                    AudioService.showEngineVideo(false)
                     pv.visibility = android.view.View.VISIBLE
                     pv.bringToFront()
                 } else {
