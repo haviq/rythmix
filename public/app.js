@@ -887,7 +887,18 @@ async function loadLyrics(song, { silent = false } = {}) {
   if (!song) return;
   const myReq = ++lyricsReqId;
   const durationSec = (() => {
-    if (Player.yt && Player.ready && Player.yt.getDuration) return Math.round(Player.yt.getDuration() || 0);
+    if (Player.yt && Player.ready && Player.yt.getDuration) {
+      const d = Math.round(Player.yt.getDuration() || 0);
+      if (d) return d;
+    }
+    // v3.0: durasi YT belum masuk → parse duration teks lagu ("3:45") biar server
+    // dapat durasi bener sejak fetch pertama (versi LRC pas menang, tanpa re-fetch)
+    const raw = song.duration;
+    if (typeof raw === 'string' && raw.includes(':')) {
+      const parts = raw.split(':').map(Number);
+      if (parts.every((n) => Number.isFinite(n))) return parts.reduce((a, b) => a * 60 + b, 0);
+    }
+    if (typeof raw === 'number' && raw > 0) return Math.round(raw);
     return 0;
   })();
   Player._lyricsDur = durationSec;
@@ -3456,6 +3467,17 @@ if (npShare) npShare.addEventListener('click', () => shareSong(focusedSong()));
 const npMore = $('#np-more');
 if (npMore) npMore.addEventListener('click', openNowPlayingMore);
 $('#np-artist').addEventListener('click', (e) => { e.stopPropagation(); goToArtist(focusedSong()); });
+// v3.0: tap logo/judul/art = play langsung (tanpa toggle) — user ekspektasi "klik = play"
+function rmTapPlay(el) {
+  if (!el) return;
+  el.addEventListener('click', (e) => {
+    if (!Player.current || !Player.yt) return;
+    if (e.target.closest('button, input')) return;
+    if (window.__nativeMode) { if (!window.__rmPlaying) Player.yt.playVideo(); }
+    else { const st = Player.yt.getPlayerState && Player.yt.getPlayerState(); if (st !== 1) Player.yt.playVideo(); }
+  });
+}
+['#mini-art', '#mini-title', '#mini-artist', '#np-art', '#np-title'].forEach((id) => { try { rmTapPlay($(id)); } catch {} });
 
 let seekDragging = false;
 const range = $('#np-range');
