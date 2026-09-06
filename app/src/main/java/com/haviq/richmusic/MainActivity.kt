@@ -141,6 +141,24 @@ class MainActivity : AppCompatActivity() {
         wv.loadUrl("https://rythmix-music.vercel.app")
     }
 
+    /** v2.7: posisi video = kotak thumbnail di Now Playing (bukan fullscreen).
+        JS kirim rect dari elemen #np-video tiap layout berubah. */
+    private fun applyVideoRect(x: Int, y: Int, w: Int, h: Int) {
+        val pv = playerView ?: return
+        lastVideoRect[0] = x; lastVideoRect[1] = y; lastVideoRect[2] = w; lastVideoRect[3] = h
+        if (w <= 0 || h <= 0) { // NP minimize / tab lain → video ikut hilang, audio jalan terus
+            pv.visibility = android.view.View.GONE
+            return
+        }
+        if (videoMode) pv.visibility = android.view.View.VISIBLE
+        pv.translationX = x.toFloat()
+        pv.translationY = y.toFloat()
+        pv.layoutParams = (pv.layoutParams as? FrameLayout.LayoutParams ?: FrameLayout.LayoutParams(0, 0)).let { lp ->
+            lp.width = w; lp.height = h; lp
+        }
+        pv.requestLayout()
+    }
+
     private fun buildUiWebViewClient(): WebViewClient = object : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
             val u = url ?: return false
@@ -197,14 +215,21 @@ class MainActivity : AppCompatActivity() {
     private fun setVideoModeUi(on: Boolean) {
         videoMode = on
         runOnUiThread {
-            // v2.6: SATU video tampil — playerView vs overlay engine jangan berebut.
+            // v2.7: SATU video tampil — playerView vs overlay engine jangan berebut.
             // ExoPlayer on → overlay engine harus sembunyi total (dulu ketumpuk hitam).
             if (on) AudioService.showEngineVideo(false)
-            playerView?.visibility = if (on) android.view.View.VISIBLE else android.view.View.GONE
-            if (on) playerView?.bringToFront()
-            else uiWebView?.bringToFront()
+            if (on) {
+                playerView?.visibility = android.view.View.VISIBLE
+                playerView?.bringToFront()
+                // rect terakhir dari JS (kotak thumbnail); 0 = belum dikirim → fullscreen sementara
+                if (lastVideoRect[2] > 0) applyVideoRect(lastVideoRect[0], lastVideoRect[1], lastVideoRect[2], lastVideoRect[3])
+            } else {
+                playerView?.visibility = android.view.View.GONE
+                uiWebView?.bringToFront()
+            }
         }
     }
+    private val lastVideoRect = intArrayOf(0, 0, 0, 0)
 
     override fun onResume() {
         super.onResume()
@@ -419,6 +444,9 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun prepare(videoId: String, title: String, artist: String, startSeconds: Double) {
+            // v2.7: videoMode aktif → cued track juga pakai jalur video (resolve muxed+prepare, no play).
+            // (dulu: cue selalu audio → resume nyalain audio padahal mode video)
+            if (videoMode) { prepareVideo(videoId, title, artist, startSeconds); return }
             scope.launch {
                 try {
                     playRequested = false
@@ -462,6 +490,47 @@ class MainActivity : AppCompatActivity() {
                 AudioService.player?.pause()
                 val p = AudioService.player ?: return@launch
                 AudioService.pushTick(AudioService.youtubeState(p), p.currentPosition / 1000, p.duration / 1000)
+            }
+        }
+
+        /** v2.7: prepare jalur video — resolve video (tanpa play) untuk cued track. */
+        fun prepareVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
+            scope.launch {
+                try {
+                    playRequested = false
+                    AudioService.playGen++
+                    val targetGen = AudioService.playGen
+                    val pair = StreamResolver.resolveVideo(videoId, 0)
+                    val p = AudioService.player ?: return@launch
+                    if (targetGen != AudioService.playGen) return@launch
+                    lastVideoId = videoId; lastTitle = title; lastArtist = artist
+                    val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
+                    if (pair.audio != null) {
+                        val aItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.audio))
+                        val f = androidx.media3.datasource.DefaultDataSource.Factory(this@MainActivity)
+                        val merged = androidx.media3.exoplayer.source.MergingMediaSource(
+                            androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(f).createMediaSource(vItem),
+                            androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(f).createMediaSource(aItem)
+                        )
+                        p.setMediaSource(merged, (startSeconds * 1000).toLong())
+                    } else {
+                        p.setMediaItem(
+                            androidx.media3.common.MediaItem.Builder().setUri(Uri.parse(pair.video))
+                                .setMediaMetadata(
+                                    androidx.media3.common.MediaMetadata.Builder()
+                                        .setTitle(title).setArtist(artist)
+                                        .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg")).build()
+                                ).build(),
+                            (startSeconds * 1000).toLong()
+                        )
+                    }
+                    p.prepare()
+                    AudioService.mediaGen = targetGen
+                } catch (e: Exception) {
+                    // video gagal → tetap prepare audio; videoMode tetap ON (lagu berikut coba video lagi)
+                    playRequested = false
+                    play(videoId, title, artist, startSeconds)
+                }
             }
         }
 
@@ -548,6 +617,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         // ---- Video mode (v1.4) ----
+        // v2.7: JS kirim rect kotak #np-video (CSS px) — video dirender TEPAT di
+        // kotak thumbnail Now Playing, bukan fullscreen.
+        @JavascriptInterface fun setVideoRect(x: Int, y: Int, w: Int, h: Int) {
+            val den = resources.displayMetrics.density
+            runOnUiThread { applyVideoRect((x * den).toInt(), (y * den).toInt(), (w * den).toInt(), (h * den).toInt()) }
+        }
         @JavascriptInterface fun setVideoMode(on: Boolean) {
             videoMode = on
             runOnUiThread {
@@ -614,26 +689,19 @@ class MainActivity : AppCompatActivity() {
                     // v1.4.1: show surface only AFTER resolve succeeded — no black hole on failure
                     setVideoModeUi(true)
                 } catch (e: Exception) {
-                    // v1.7: NewPipe video resolve kena PO-token block → jangan drop ke audio.
-                    // Pakai engine YT IFrame fullscreen (player YouTube resmi, resolusi selalu ada).
-                    setVideoModeUi(false)
+                    // v2.7: resolve video gagal (PO-token block dll) → lanjut AUDIO,
+                    // tapi videoMode TETAP ON — lagu berikutnya otomatis coba video lagi.
+                    // (dulu: lempar ke engine overlay fullscreen → ngeblok layar)
                     try {
-                        // v2.2: judul notif dipaksa di sini — sebelumnya lagu engine fallback
-                        // nunjukin judul lagu SEBELUMNYA ("acak").
                         AudioService.notifTitle = title; AudioService.notifArtist = artist
-                        engineVideoActive = true
                         AudioService.playGen++
                         AudioService.mediaGen = AudioService.playGen
-                        AudioService.player?.stop()
-                        AudioService.showEngineVideo(true)
-                        AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
-                        pushToJs("window.__rmEngineVideoMode && window.__rmEngineVideoMode(true)")
-                    } catch (e2: Exception) {
                         engineVideoActive = false
-                        // overlay tidak tersedia → benar-benar fallback audio
-                        pushToJs("window.__rmVideoToggle && window.__rmVideoToggle(false)")
+                        AudioService.player?.stop()
                         play(videoId, title, artist, startSeconds)
-                        AudioService.onError?.invoke("Video gak tersedia — lanjut audio")
+                        AudioService.onError?.invoke("Video gak tersedia — lanjut audio, mode video tetap on")
+                    } catch (e2: Exception) {
+                        AudioService.onError?.invoke("Video gak tersedia")
                     }
                 }
             }
