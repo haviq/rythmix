@@ -300,7 +300,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val notifPermLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    private val overlayPermLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
+    private val overlayPermLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        // v2.5: user kembali dari Settings overlay — coba attach ulang biar mode video bisa jalan
+        AudioService.retryOverlayAttach()
+    }
 
     // JS bridge — exposed as window.RichMusicBridge on the UI WebView.
     // Playback happens in AudioService (ExoPlayer resolved via StreamResolver);
@@ -560,6 +563,9 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { pushToJs("window.__rmEngineVideoMode && window.__rmEngineVideoMode(false)") }
             }
         }
+
+        /** v2.5: JS minta coba attach overlay lagi (dipanggil sebelum playVideo). */
+        @JavascriptInterface fun retryOverlay(): Boolean = AudioService.retryOverlayAttach()
 
         /** Play muxed MP4 (audio+video) — JS calls this when videoMode is on. */
         @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {

@@ -90,13 +90,15 @@ class AudioService : Service() {
             var sid = sessionId
             if (sid <= 0) sid = player?.audioSessionId ?: 0
             if (sid <= 0) return
-            if (fxSessionId != 0 && fxSessionId != sessionId) {
+            // v2.5: bandingkan dgn sid yg sudah di-resolve (bukan param mentah) —
+            // play() manggil dgn audioSessionId yg kadang masih 0 (belum READY).
+            if (fxSessionId != 0 && fxSessionId != sid) {
                 // stale fx from a dead audio session — drop them
                 try { eq?.release() } catch (_: Exception) {}
                 try { viz?.release() } catch (_: Exception) {}
                 eq = null; viz = null
             }
-            fxSessionId = sessionId
+            fxSessionId = sid
             val recGranted = android.os.Build.VERSION.SDK_INT < 23 ||
                 androidx.core.content.ContextCompat.checkSelfPermission(svc, android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
             try {
@@ -142,6 +144,8 @@ class AudioService : Service() {
 
         // v1.7: companion delegates — instance fungsi diakses dari MainActivity tanpa binder
         @JvmStatic fun showEngineVideo(on: Boolean) { fxService?.engineShowVideo(on) }
+        // v2.5: coba attach overlay lagi — true = nempel
+        @JvmStatic fun retryOverlayAttach(): Boolean = fxService?.retryOverlay() == true
         @JvmStatic fun engineSeek(seconds: Double) { fxService?.engineDoSeek(seconds) }
         @JvmStatic fun enginePlay() { fxService?.engineDoPlay() }
         @JvmStatic fun enginePause() { fxService?.engineDoPause() }
@@ -338,7 +342,18 @@ class AudioService : Service() {
         android.os.Handler(android.os.Looper.getMainLooper()).post { engineShowVideoInner(on) }
     }
     private fun engineShowVideoInner(on: Boolean) {
-        if (!overlayAttached) return
+        if (!overlayAttached) {
+            // v2.5: izin mungkin baru diberikan — coba attach ulang sekali
+            audioWebView?.let { attachOverlay(it) }
+        }
+        if (!overlayAttached) {
+            // v2.5: gagal diam-diam = "video ga bisa" — kasih tahu user + balikin flag JS
+            if (on) {
+                onUiCommand?.invoke("toast('❌ Mode video butuh izin overlay — aktifkan di Settings → Apps → Rythmix → Tampil di atas aplikasi')")
+                onUiCommand?.invoke("window.__rmVideoToggle && window.__rmVideoToggle(false)")
+            }
+            return
+        }
         val wv = audioWebView ?: return
         try {
             val wm = windowManager ?: return
@@ -395,6 +410,14 @@ class AudioService : Service() {
         } catch (_: Exception) {
             // overlay denied — engine tetap hidup di memory, mungkin throttled
         }
+    }
+
+    /** v2.5: coba attach overlay lagi (user mungkin baru kasih izin). True = nempel. */
+    fun retryOverlay(): Boolean {
+        if (overlayAttached) return true
+        val wv = audioWebView ?: return false
+        attachOverlay(wv)
+        return overlayAttached
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
