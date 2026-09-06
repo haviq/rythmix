@@ -61,11 +61,13 @@ function toggleTheme() {
 function openNowPlaying() {
   $('#nowplaying').classList.remove('hidden');
   document.body.classList.add('np-open');
+  requestAnimationFrame(syncVideoRect);
 }
 function closeNowPlaying() {
   Player.pending = null;
   $('#nowplaying').classList.add('hidden');
   document.body.classList.remove('np-open');
+  syncVideoRect(); // v2.7: NP ketutup → video ikut hilang (native), audio jalan terus
   renderNowPlaying();
   renderPlayButtons();
   updateLikeButtons();
@@ -267,8 +269,8 @@ window.onYouTubeIframeAPIReady = () => {
         const v = store.get('vol', 100);
         Player.yt.setVolume(Number(v));
         applyPlaybackQuality();
-        // v2.6: restore video mode web — iframe pindah ke panel NP
-        try { if (Player.videoMode && !window.__nativeMode) { document.body.classList.add('show-video'); moveWebVideo(true); } } catch {}
+        // v2.6/2.7: restore video mode — web: iframe pindah ke panel NP; native: class utk rect sync
+        try { if (Player.videoMode) { document.body.classList.add('show-video'); if (!window.__nativeMode) moveWebVideo(true); } } catch {}
         try {
           const iframe = Player.yt.getIframe && Player.yt.getIframe();
           if (iframe) iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
@@ -355,11 +357,13 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
       // native path: bridge.play resolves via NewPipe Extractor in-app (~1-2s), no loader.to
       // fallback: JS resolves via download API if NewPipe fails (__rmNativeFallback)
+      // v2.7: videoMode persist — play saat videoMode aktif → playVideo langsung
+      var startArg = start || 0;
       if (window.Player && window.Player.videoMode && window.RichMusicBridge.playVideo) {
-        window.RichMusicBridge.playVideo(id, title, artist, start);
+        window.RichMusicBridge.playVideo(id, title, artist, startArg);
         window.RichMusicBridge.setVideoMode(true);
       } else {
-        window.RichMusicBridge.play(id, title, artist, start);
+        window.RichMusicBridge.play(id, title, artist, startArg);
       }
     };
     YT.Player.prototype.cueVideoById = function(opts) {
@@ -783,6 +787,11 @@ setInterval(() => {
     }
   }
   const dur = Player.yt.getDuration() || 0;
+  // v2.7: durasi baru diketahui setelah PLAYING (APK tick 250ms) → auto-offset ulang di sini
+  if (dur && dur !== Player._lyricsDur) {
+    Player._lyricsDur = dur;
+    try { if (applyAutoOffset()) syncLyricOffsetUI(); } catch {}
+  }
   const pct = dur ? (cur / dur) * 100 : 0;
   $('#mini-progress-fill').style.width = pct + '%';
   const knob = $('.pb-knob');
@@ -797,6 +806,8 @@ setInterval(() => {
   if (!isPreviewing()) updateLyricHighlight(cur);
   syncFloatProgress(pct);
   if (Player.floatOn) drawPipFrame(pct);
+  // v2.7: ikuti layout NP (scroll/rotate/resize) — video tetap nempel kotak thumbnail
+  try { syncVideoRect(); } catch {}
 }, 100);
 
 function renderPlayButtons() {
@@ -928,18 +939,8 @@ async function loadLyrics(song, { silent = false } = {}) {
       if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
     } else {
       Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
-      // v2.6: auto-offset intro — timestamp katalog patokan versi studio (tanpa intro MV),
-      // sementara yg diputar video ber-intro. Baseline = durasi video − durasi lirik terakhir,
-      // hanya bila user belum set manual utk lagu ini.
-      try {
-        const manual = localStorage.getItem(lyOffKey());
-        const lastT = Player.lyrics.lines.length ? Player.lyrics.lines[Player.lyrics.lines.length - 1].t : 0;
-        const vidDur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration())) || Player._lyricsDur || 0;
-        if (!manual && lastT > 30 && vidDur > lastT + 4 && vidDur < lastT + 60) {
-          Player.lyricOffset = Math.round((vidDur - lastT - 2) * 10) / 10;
-          localStorage.setItem(lyOffKey(), Player.lyricOffset);
-        }
-      } catch {}
+      // v2.7: auto-offset intro (baseline = durasi video − durasi lirik) — manual menang
+      try { applyAutoOffset(); } catch {}
     }
   } catch {
     if (myReq !== lyricsReqId) return;
@@ -972,6 +973,23 @@ function parseLRC(lrc) {
   return lines.sort((a, b) => a.t - b.t);
 }
 function lyOffKey() { return 'rm_loff_' + (Player.current && Player.current.videoId || ''); }
+/* v2.7: auto-offset intro — dipanggil dari loadLyrics (web, durasi sudah ada)
+   dan dari tick (APK, durasi baru diketahui setelah PLAYING). Manual offset selalu menang. */
+function applyAutoOffset() {
+  const L = Player.lyrics;
+  if (!L.lines.length) return false;
+  if (localStorage.getItem(lyOffKey())) return false; // user sudah set manual
+  // v2.7: caption video sudah sinkron dengan timeline video — jangan digeser
+  if (String(L.source || '').toLowerCase().includes('caption')) return false;
+  const lastT = L.lines[L.lines.length - 1].t;
+  const dur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration() || 0)) || 0;
+  if (lastT > 30 && dur > lastT + 4 && dur < lastT + 60) {
+    Player.lyricOffset = Math.min(30, Math.round((dur - lastT - 2) * 10) / 10);
+    localStorage.setItem(lyOffKey(), Player.lyricOffset);
+    return true;
+  }
+  return false;
+}
 function syncLyricOffsetUI() {
   const o = $('#lyrics-offset');
   if (o) o.textContent = (Player.lyricOffset > 0 ? '+' : '') + Player.lyricOffset.toFixed(1) + 's';
@@ -3243,6 +3261,7 @@ function toggleVideoMode() {
     // v1.4.1: native shows surface only after video resolve succeeds — no black screen on failure
     const pos = (window.__rmState && window.__rmState.time) || 0;
     window.RichMusicBridge.playVideo(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
+    requestAnimationFrame(syncVideoRect); // v2.7: surface langsung nempel kotak thumbnail
     toast('Mode video: ON');
   } else if (!Player.videoMode) {
     window.RichMusicBridge.setVideoMode(false);
@@ -3253,6 +3272,21 @@ function toggleVideoMode() {
     toast('Mode audio: ON');
   }
   renderMoreMenu && renderMoreMenu();
+}
+// v2.7: native — #np-video jadi placeholder kotak thumbnail; surface ExoPlayer
+// dirender TEPAT di situ (rect dikirim ke bridge). Web — iframe dipindah ke slot.
+function syncVideoRect() {
+  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.setVideoRect) return;
+  const el = document.getElementById('np-video');
+  if (!el) return;
+  const npOpen = document.body.classList.contains('np-open');
+  const playerTab = $('#np-player') && $('#np-player').classList.contains('active');
+  const r = el.getBoundingClientRect();
+  if (Player.videoMode && npOpen && playerTab && r.width > 10 && r.height > 10) {
+    window.RichMusicBridge.setVideoRect(Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height));
+  } else {
+    window.RichMusicBridge.setVideoRect(0, 0, 0, 0); // NP minim / tab lain → video hilang, audio jalan
+  }
 }
 // v2.6: pindahkan iframe YT antara #yt-holder (audio tersembunyi) dan
 // #np-video-slot (video terlihat, ikut tab player & minimize). Balikin posisi
@@ -3272,8 +3306,9 @@ function moveWebVideo(on) {
 window.__rmVideoToggle = function(on) {
   Player.videoMode = !!on;
   store.set('vid_mode', Player.videoMode);
-  document.body.classList.toggle('show-video', !!on && !window.__nativeMode);
+  document.body.classList.toggle('show-video', !!on);
   try { if (!window.__nativeMode) moveWebVideo(!!on); } catch {}
+  requestAnimationFrame(syncVideoRect);
   renderMoreMenu && renderMoreMenu();
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
@@ -3416,6 +3451,7 @@ range.addEventListener('change', () => {
 function switchNPTab(name) {
   $$('.np-tab').forEach((t) => t.classList.toggle('active', t.dataset.nptab === name));
   $$('.np-pane').forEach((p) => p.classList.toggle('active', p.id === 'np-' + name));
+  requestAnimationFrame(syncVideoRect); // v2.7: tab bukan player → video hilang
   if (name === 'related') loadRelated();
   if (name === 'lyrics') { lastLyricIdx = -2; }
   if (name === 'queue') renderQueue();

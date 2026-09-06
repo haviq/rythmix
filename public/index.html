@@ -177,9 +177,10 @@ try {
       </div>
       <div class="np-body">
         <section id="np-player" class="np-pane active">
-          <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" /></div>
-          <!-- v2.6: wadah video web — iframe YT dipindah ke sini saat video mode (ikut tab & minimize) -->
-          <div id="np-video"><div class="np-video-crop"><div id="np-video-slot"></div></div></div>
+          <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" />
+            <!-- v2.7: video menimpa thumbnail (web: iframe di slot; native: placeholder rect utk ExoPlayer) -->
+            <div id="np-video"><div class="np-video-crop"><div id="np-video-slot"></div></div></div>
+          </div>
           <div class="np-meta">
             <div id="np-title">—</div>
             <div id="np-artist">—</div>
