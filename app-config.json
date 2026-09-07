@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 58,
-    "versionName": "3.1",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.1/rythmix-v3.1.apk",
-    "notes": "v3.1: fix lagu gak bisa play pas pindah lagu + lirik molor di lagu intro panjang"
+    "versionCode": 59,
+    "versionName": "3.2",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.2/rythmix-v3.2.apk",
+    "notes": "v3.2: fix ganti lagu tetap lagu lama + tap judul gak play (race resolve & watchdog)"
   },
   "maintenance": {
     "enabled": false,

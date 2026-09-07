@@ -341,6 +341,12 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
     // watchdog fallback jangan ganggu (dulu buffering 8s dianggap macet → double setMediaItem = lagu restart dari 0)
     window.__rmBusy = function() { return _rmSt.state === 1 || _rmSt.state === 3; };
     window.__rmOnError = function() { if (_rmEv.onError) _rmEv.onError({ data: 2 }); };
+    // v3.2: native ExoPlayer path gagal → engine fallback dikirim; app.js tidak punya mkPlayer
+    // (iframe diblokir background) → reset state & lempar error ke UI biar retry path audio jalan.
+    window.__rmEngineMode = function() {
+      _rmSt.state = -1;
+      if (_rmEv.onError) _rmEv.onError({ data: 2 });
+    };
     window.YT = {
       PlayerState: { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 },
       Player: function(id, opts) {
@@ -579,8 +585,9 @@ function startCurrent() {
     window.__rmPlaying = false;
     clearTimeout(window.__rmWatchdog);
     window.__rmWatchdog = setTimeout(() => {
-      // v3.1: skip fallback kalau player masih playing/buffering (double setMediaItem = restart dari 0)
-      if (!window.__rmPlaying && !window.__rmBusy() && window.__nativeMode && window.RichMusicBridge) {
+      // v3.2: fallback saat 8s belum PLAYING — BUFFERING 8s+ = resolve macet, bukan proses valid.
+      // Hanya skip kalau udah PLAYING (lagu baru udah jalan).
+      if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
         try { __rmNativeFallback(s.videoId); } catch (e) {}
       }
     }, 8000);
