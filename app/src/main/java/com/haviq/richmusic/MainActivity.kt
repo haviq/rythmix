@@ -352,6 +352,10 @@ class MainActivity : AppCompatActivity() {
     inner class JSBridge {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         @Volatile private var lastVideoId: String? = null
+        // v3.3: id lagu yang BENAR2 dimuat di player (bukan yang diminta) —
+        // lastVideoId sekarang sync-diset di play() utk resume(), jadi gak boleh
+        // dipakai guard same-song lagi (v3.2 regesi: guard selalu true → switch diabaikan).
+        @Volatile private var playingVideoId: String? = null
         @Volatile private var lastTitle: String? = null
         @Volatile private var lastArtist: String? = null
         @Volatile private var playRequested = false
@@ -389,7 +393,9 @@ class MainActivity : AppCompatActivity() {
                     val p0 = AudioService.player
                     if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
                         p0.currentMediaItem?.localConfiguration?.uri != null) {
-                        val cur = lastVideoId
+                        // v3.3: guard same-song pakai id yang SUDAH dimuat (bukan lastVideoId
+                        // yang baru dioverwrite di atas — dulu selalu true → switch lagu diabaikan)
+                        val cur = playingVideoId
                         if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
                     }
                     lastVideoId = videoId
@@ -421,6 +427,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     p.prepare()
                     p.play()
+                    playingVideoId = videoId // v3.3: item benar2 dimuat sekarang
                     AudioService.mediaGen = targetGen
                     resolving = false
                     engineVideoActive = false
@@ -463,6 +470,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     p.prepare()
                     p.play()
+                    playingVideoId = lastVideoId // v3.3: fallback path — lastVideoId diset sync di play()
                     AudioService.mediaGen = targetGen
                     // v2.4: re-attach EQ/viz (playUrl path juga ganti media item)
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
@@ -512,6 +520,7 @@ class MainActivity : AppCompatActivity() {
                     )
                     p.prepare()
                     AudioService.mediaGen = targetGen
+                    playingVideoId = videoId // v3.3: cued item benar2 dimuat
                     resolving = false // v2.9
                     if (playRequested) { playRequested = false; p.play() }
                 } catch (e: Exception) {
@@ -573,6 +582,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     p.prepare()
                     AudioService.mediaGen = targetGen
+                    playingVideoId = videoId // v3.3: prepareVideo — cued video dimuat
                     resolving = false // v2.9
                     if (playRequested) { playRequested = false; p.play() } // v2.9: resume mid-resolve → play
                 } catch (e: Exception) {
@@ -744,6 +754,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     p.prepare()
                     p.play()
+                    playingVideoId = videoId // v3.3: video path — item benar2 dimuat
                     AudioService.mediaGen = targetGen
                     resolving = false
                     // v1.4.1: show surface only AFTER resolve succeeded — no black hole on failure
