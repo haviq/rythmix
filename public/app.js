@@ -418,11 +418,20 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
     window.__rmNativeFallback = function(videoId) {
       if (!videoId) return;
       var s = window.Player && window.Player.current;
+      if (!s || s.videoId !== videoId) return; // v3.6: guard lagu telat 1
       var title = (s && s.title) || ''; var artist = (s && s.artist) || '';
       toast('Menyiapkan audio…');
       resolveStreamUrl(videoId)
-        .then(function(url) { window.RichMusicBridge.playUrl(url, title, artist, 0); })
-        .catch(function(e) { window.__rmOnError && window.__rmOnError(String(e && e.message || 'resolve failed')); });
+        .then(function(url) { 
+          var cur = window.Player && window.Player.current;
+          if (!cur || cur.videoId !== videoId) return; // v3.6: guard lagu telat 2
+          window.RichMusicBridge.playUrl(url, title, artist, 0); 
+        })
+        .catch(function(e) { 
+          var cur = window.Player && window.Player.current;
+          if (!cur || cur.videoId !== videoId) return; // v3.6: guard lagu telat 3
+          window.__rmOnError && window.__rmOnError(String(e && e.message || 'resolve failed')); 
+        });
     };
     window.onYouTubeIframeAPIReady();
   })();
