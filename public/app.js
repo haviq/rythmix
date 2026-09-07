@@ -592,6 +592,17 @@ function startCurrent() {
     if (loadId !== Player.loadId) return;
     if (!Player.ready) return setTimeout(tryPlay, 300);
     Player.yt.loadVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
+    // v3.6.2: ala YouTube Music — begitu lagu baru mulai, UI progress DIPAKSA ke 0:00
+    // seketika (jangan nunggu tick native/durasi baru). Tick lama yg telat datang diabaikan
+    // karena _rmSt.time/_lastCur sudah di-reset di loadVideoById.
+    try {
+      $('#mini-progress-fill').style.width = '0%';
+      const k = $('.pb-knob'); if (k) k.style.left = '0%';
+      $('#mini-cur').textContent = '0:00';
+      $('#np-range').value = 0;
+      $('#np-cur').textContent = '0:00';
+      if (window.syncFloatProgress) window.syncFloatProgress(0);
+    } catch (e) {}
     // watchdog: if NewPipe resolve stalls (>8s, no PLAYING yet) auto-switch to the
     // proven download-API path so the track starts without a manual re-tap.
     window.__rmPlaying = false;
