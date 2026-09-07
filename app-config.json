@@ -2,7 +2,7 @@
   "release": {
     "versionCode": 65,
     "versionName": "3.6.2",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.6/rythmix-v3.6.2.apk",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.6.2/rythmix-v3.6.2.apk",
     "notes": "v3.6.2: Fix bar nyangkut tengah saat ganti lagu (ala YouTube Music): tick lama dicegah bocor selama resolve, progress dipaksa reset ke 0:00 seketika."
   },
   "maintenance": {
