@@ -380,6 +380,10 @@ class MainActivity : AppCompatActivity() {
             // → replay item lama ("ganti musik tetap lagu pertama").
             playRequested = false
             resolving = true
+            // v3.2: set identitas sinkron — prepare() cue lama bisa gagal & meninggalkan
+            // currentMediaItem=null; resume() butuh lastVideoId lagu BARU, bukan lama.
+            lastVideoId = videoId
+            lastTitle = title; lastArtist = artist
             scope.launch {
                 try {
                     val p0 = AudioService.player
@@ -425,10 +429,11 @@ class MainActivity : AppCompatActivity() {
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                 } catch (e: Exception) {
                     resolving = false
-                    // ExoPlayer path failed → try engine WebView IFrame (works in background via overlay)
-                    engineVideoActive = true
-                    AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
-                    pushToJs("window.__rmEngineMode && window.__rmEngineMode()")
+                    // v3.2: JANGAN route ke engine WebView — mkPlayer iframe gak jalan di
+                    // background & engineVideoActive nyangkut = semua tap berikutnya mati.
+                    // Evict URL mungkin-busuk + lempar error ke JS (retry path audio: onError→startCurrent).
+                    try { StreamResolver.evict(videoId) } catch (_: Exception) {}
+                    AudioService.onError?.invoke("resolve failed: ${e.message ?: "unknown"}")
                 }
             }
         }
@@ -477,6 +482,10 @@ class MainActivity : AppCompatActivity() {
             if (videoMode) { prepareVideo(videoId, title, artist, startSeconds); return }
             playRequested = false
             resolving = true // v3.0: sync guard — race dgn resume() sebelum coroutine Main jalan
+            // v3.2: identitas sinkron — cue lama gagal (resolve error) → currentMediaItem=null;
+            // resume() re-run play path pakai lastVideoId. Harus lagu BARU, bukan sisa lama.
+            lastVideoId = videoId
+            lastTitle = title; lastArtist = artist
             scope.launch {
                 try {
                     playRequested = false
@@ -507,7 +516,9 @@ class MainActivity : AppCompatActivity() {
                     if (playRequested) { playRequested = false; p.play() }
                 } catch (e: Exception) {
                     resolving = false
-                    AudioService.pushToAudioJs("window.player && mkPlayer ? mkPlayer(${jsQuote(videoId)}, $startSeconds) : null")
+                    playRequested = false
+                    // v3.2: video resolve gagal → fallback AUDIO path (play()), bukan engine WebView
+                    play(videoId, title, artist, startSeconds)
                 }
             }
         }
@@ -691,6 +702,9 @@ class MainActivity : AppCompatActivity() {
 
         /** Play muxed MP4 (audio+video) — JS calls this when videoMode is on. */
         @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
+            // v3.2: identitas sinkron juga di jalur video (sama dgn play/prepare)
+            lastVideoId = videoId
+            lastTitle = title; lastArtist = artist
             scope.launch {
                 try {
                     // v2.9: stop lagu lama SEKARANG — resolve video 2-7s, dulu lagu lama
