@@ -1,16 +1,12 @@
 {
   "release": {
-    "versionCode": 59,
-    "versionName": "3.2",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.2/rythmix-v3.2.apk",
-    "notes": "v3.2: fix ganti lagu tetap lagu lama + tap judul gak play (race resolve & watchdog)"
+    "versionCode": 60,
+    "versionName": "3.3",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.3/rythmix-v3.3.apk",
+    "notes": "v3.3: fix ganti lagu diabaikan (guard same-song regesi v3.2), lirik/durasi gak cocok, tap play gak respon"
   },
   "maintenance": {
     "enabled": false,
     "message": "Rythmix sedang maintenance. Coba lagi sebentar ya."
-  },
-  "versionCode": 60,
-  "versionName": "3.3",
-  "url": "https://github.com/haviq/rythmix/releases/download/v3.3/rythmix-v3.3.apk",
-  "notes": "v3.3: fix ganti lagu diabaikan (guard same-song regesi v3.2), lirik/durasi gak cocok, tap play gak respon"
+  }
 }
