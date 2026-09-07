@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 60,
-    "versionName": "3.3",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.3/rythmix-v3.3.apk",
-    "notes": "v3.3: fix ganti lagu diabaikan (guard same-song regesi v3.2), lirik/durasi gak cocok, tap play gak respon"
+    "versionCode": 62,
+    "versionName": "3.5",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.5/rythmix-v3.5.apk",
+    "notes": "v3.5: Fix bug ketumpuk (lagu pertama keputar lagi/lirik ketumpuk) saat skip cepat. Resolving state dan onError sekarang diasingkan."
   },
   "maintenance": {
     "enabled": false,
