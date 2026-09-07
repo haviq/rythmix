@@ -960,6 +960,10 @@ async function loadLyrics(song, { silent = false } = {}) {
         }
       } catch {}
     }
+    // v3.5: guard stale sebelum nulis — antara guard awal (line 928) dan sini ada
+    // 3 await (fallbackLrclib + captions x2). Lagu baru di-click di tengah await →
+    // respons lama nyampe belakangan → timpa lirik lagu baru (lirik ngikut lagu pertama).
+    if (myReq !== lyricsReqId) return;
     if (!d || (!d.synced && !d.plain)) {
       if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
     } else {
