@@ -51,11 +51,14 @@ class MainActivity : AppCompatActivity() {
             serviceBound = true
 
             // Engine ticks → UI WebView
+            // v3.7: tick di-tag lastVideoId — JS membuang tick milik lagu lama
+            // (stale ticker 250ms setelah ganti lagu = progress/lirik "ikut lagu pertama").
+            // Tag videoId, bukan counter epoch: sinkron alami, tidak mungkin drift.
             AudioService.onTick = { state, posSec, durSec ->
-                pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate($state, $posSec, $durSec)")
+                pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate($state, $posSec, $durSec, '${tickVideoId ?: ""}')")
             }
             AudioService.onEnded = {
-                pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(0, 0, ${AudioService.player?.duration?.div(1000) ?: 0})")
+                pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(0, 0, ${AudioService.player?.duration?.div(1000) ?: 0}, '${tickVideoId ?: ""}')")
             }
             AudioService.onError = { msg ->
                 pushToJs("window.__rmOnError && window.__rmOnError(${jsQuote(msg)})")
@@ -276,6 +279,11 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread { uiWebView?.evaluateJavascript(script, null) }
     }
 
+    // v3.7: tag videoId untuk tick — diset sync di play/prepare/playVideo (sama saat
+    // JSBridge.lastVideoId sync-diset). Tick & onEnded memakainya agar JS bisa
+    // membuang tick milik lagu lama. Tag videoId, bukan counter: tidak mungkin drift.
+    @Volatile var tickVideoId: String? = null
+
     /** OTA update: DownloadManager fetches the APK, then opens the system installer. */
     fun startApkInstall(url: String) {
         try {
@@ -387,7 +395,17 @@ class MainActivity : AppCompatActivity() {
             // v3.2: set identitas sinkron — prepare() cue lama bisa gagal & meninggalkan
             // currentMediaItem=null; resume() butuh lastVideoId lagu BARU, bukan lama.
             lastVideoId = videoId
+            tickVideoId = videoId
             lastTitle = title; lastArtist = artist
+            AudioService.notifTitle = title; AudioService.notifArtist = artist
+            AudioService.playGen++
+            AudioService.mediaGen = AudioService.playGen
+            
+            // SYNCHRONOUSLY stop & clear media items ON UI THREAD before launching coroutine.
+            // Ini MENCEGAH lagu lama ketumpuk / bocor dimainin sementara coroutine telat jalan.
+            AudioService.player?.stop()
+            AudioService.player?.clearMediaItems()
+
             scope.launch {
                 val p0 = AudioService.player
                 if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
@@ -395,14 +413,10 @@ class MainActivity : AppCompatActivity() {
                     val cur = playingVideoId
                     if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
                 }
-                lastVideoId = videoId
-                lastTitle = title; lastArtist = artist
-                MainActivity.trackErrorCandidate(videoId)
-                AudioService.notifTitle = title; AudioService.notifArtist = artist
-                AudioService.playGen++
-                AudioService.mediaGen = AudioService.playGen
-                AudioService.player?.stop(); AudioService.player?.clearMediaItems()
-                resolving = true
+            lastVideoId = videoId
+            lastTitle = title; lastArtist = artist
+            MainActivity.trackErrorCandidate(videoId)
+            resolving = true
                 val targetGen = AudioService.playGen
                 try {
                     val info = StreamResolver.resolve(videoId, title, artist)
@@ -448,11 +462,14 @@ class MainActivity : AppCompatActivity() {
         fun playUrl(url: String, title: String, artist: String, startSeconds: Double) {
             playRequested = false
             resolving = true // v3.0: sync guard
+            
+            AudioService.notifTitle = title; AudioService.notifArtist = artist
+            AudioService.playGen++
+            // SYNCHRONOUSLY stop & clear ON UI THREAD
+            AudioService.player?.stop()
+            AudioService.player?.clearMediaItems()
+            
             scope.launch {
-                AudioService.player?.stop()
-                AudioService.player?.clearMediaItems()
-                AudioService.notifTitle = title; AudioService.notifArtist = artist
-                AudioService.playGen++
                 val targetGen = AudioService.playGen
                 try {
                     val p = AudioService.player ?: return@launch
@@ -477,7 +494,7 @@ class MainActivity : AppCompatActivity() {
                     // v2.4: re-attach EQ/viz (playUrl path juga ganti media item)
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                     val dur = p.duration / 1000
-                    pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, $dur)")
+                    pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, $dur, '${lastVideoId ?: ""}')")
                 } catch (e: Exception) {
                     if (targetGen != AudioService.playGen) return@launch // v3.5: abaikan catch
                     resolving = false // v3.0
@@ -496,6 +513,7 @@ class MainActivity : AppCompatActivity() {
             // v3.2: identitas sinkron — cue lama gagal (resolve error) → currentMediaItem=null;
             // resume() re-run play path pakai lastVideoId. Harus lagu BARU, bukan sisa lama.
             lastVideoId = videoId
+            tickVideoId = videoId
             lastTitle = title; lastArtist = artist
             scope.launch {
                 AudioService.player?.stop()
@@ -723,15 +741,19 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun playVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
             // v3.2: identitas sinkron juga di jalur video (sama dgn play/prepare)
             lastVideoId = videoId
+            tickVideoId = videoId
             lastTitle = title; lastArtist = artist
+            
+            AudioService.notifTitle = title; AudioService.notifArtist = artist
+            AudioService.playGen++
+            AudioService.mediaGen = AudioService.playGen
+            // SYNCHRONOUSLY stop & clear ON UI THREAD
+            AudioService.player?.stop()
+            AudioService.player?.clearMediaItems()
+
             scope.launch {
-                AudioService.player?.stop()
-                AudioService.player?.clearMediaItems()
                 playRequested = false
                 resolving = true
-                AudioService.notifTitle = title; AudioService.notifArtist = artist
-                AudioService.playGen++
-                AudioService.mediaGen = AudioService.playGen
                 val targetGen = AudioService.playGen
                 try {
                     val pair = StreamResolver.resolveVideo(videoId, 0)
@@ -844,7 +866,11 @@ class MainActivity : AppCompatActivity() {
             scope.launch { AudioService.player?.playbackParameters = androidx.media3.common.PlaybackParameters(r.toFloat(), 1f) }
         }
 
-        @JavascriptInterface fun stop() { AudioService.player?.stop(); AudioService.player?.clearMediaItems(); AudioService.player?.clearMediaItems() } // v3.0: clear item — stop() nyisain lagu lama, resume() bisa replay
+        @JavascriptInterface fun stop() {
+            // v3.0: clear item — stop() nyisain lagu lama, resume() bisa replay
+            AudioService.player?.stop()
+            AudioService.player?.clearMediaItems()
+        }
         @JavascriptInterface fun isPlaying(): Boolean = AudioService.player?.isPlaying == true
         @JavascriptInterface fun getCurrentTime(): Double = (AudioService.player?.currentPosition ?: 0L) / 1000.0
         @JavascriptInterface fun getDuration(): Double = (AudioService.player?.duration ?: 0L) / 1000.0
