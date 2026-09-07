@@ -389,26 +389,22 @@ class MainActivity : AppCompatActivity() {
             lastVideoId = videoId
             lastTitle = title; lastArtist = artist
             scope.launch {
+                val p0 = AudioService.player
+                if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
+                    p0.currentMediaItem?.localConfiguration?.uri != null) {
+                    val cur = playingVideoId
+                    if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
+                }
+                lastVideoId = videoId
+                lastTitle = title; lastArtist = artist
+                MainActivity.trackErrorCandidate(videoId)
+                AudioService.notifTitle = title; AudioService.notifArtist = artist
+                AudioService.playGen++
+                AudioService.mediaGen = AudioService.playGen
+                AudioService.player?.stop()
+                resolving = true
+                val targetGen = AudioService.playGen
                 try {
-                    val p0 = AudioService.player
-                    if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
-                        p0.currentMediaItem?.localConfiguration?.uri != null) {
-                        // v3.3: guard same-song pakai id yang SUDAH dimuat (bukan lastVideoId
-                        // yang baru dioverwrite di atas — dulu selalu true → switch lagu diabaikan)
-                        val cur = playingVideoId
-                        if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
-                    }
-                    lastVideoId = videoId
-                    lastTitle = title; lastArtist = artist
-                    MainActivity.trackErrorCandidate(videoId)
-                    AudioService.notifTitle = title; AudioService.notifArtist = artist
-                    // v4.0.2: stop old item NOW + align gens so stray resume()/stale ticks
-                    // can't resurrect the previous song (pause/resume blink on track switch)
-                    AudioService.playGen++
-                    AudioService.mediaGen = AudioService.playGen
-                    AudioService.player?.stop()
-                    resolving = true
-                    val targetGen = AudioService.playGen
                     val info = StreamResolver.resolve(videoId, title, artist)
                     val p = AudioService.player ?: run { resolving = false; return@launch }
                     if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
@@ -429,12 +425,15 @@ class MainActivity : AppCompatActivity() {
                     p.play()
                     playingVideoId = videoId // v3.3: item benar2 dimuat sekarang
                     AudioService.mediaGen = targetGen
-                    resolving = false
-                    engineVideoActive = false
+                    if (targetGen == AudioService.playGen) {
+                        resolving = false
+                        engineVideoActive = false
+                    }
                     // v2.4: re-attach EQ/viz tiap lagu — stop()+setMediaItem bisa
                     // re-init sink dgn session id baru; object lama = no efek.
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                 } catch (e: Exception) {
+                    if (AudioService.playGen != targetGen) return@launch // v3.5: Abaikan catch jika request stale
                     resolving = false
                     // v3.2: JANGAN route ke engine WebView — mkPlayer iframe gak jalan di
                     // background & engineVideoActive nyangkut = semua tap berikutnya mati.
@@ -450,10 +449,10 @@ class MainActivity : AppCompatActivity() {
             playRequested = false
             resolving = true // v3.0: sync guard
             scope.launch {
+                AudioService.notifTitle = title; AudioService.notifArtist = artist
+                AudioService.playGen++
+                val targetGen = AudioService.playGen
                 try {
-                    AudioService.notifTitle = title; AudioService.notifArtist = artist
-                    AudioService.playGen++
-                    val targetGen = AudioService.playGen
                     val p = AudioService.player ?: return@launch
                     if (targetGen != AudioService.playGen) return@launch
                     p.setMediaItem(
@@ -472,14 +471,15 @@ class MainActivity : AppCompatActivity() {
                     p.play()
                     playingVideoId = lastVideoId // v3.3: fallback path — lastVideoId diset sync di play()
                     AudioService.mediaGen = targetGen
-                    resolving = false // v3.4: clear guard juga di path sukses (dulu nyangkut → pause/resume mati)
+                    if (targetGen == AudioService.playGen) resolving = false // v3.4: clear guard juga di path sukses (dulu nyangkut → pause/resume mati)
                     // v2.4: re-attach EQ/viz (playUrl path juga ganti media item)
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                     val dur = p.duration / 1000
                     pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, $dur)")
                 } catch (e: Exception) {
+                    if (targetGen != AudioService.playGen) return@launch // v3.5: abaikan catch
                     resolving = false // v3.0
-                    AudioService.onError?.invoke(e.message ?: "play failed")
+                    AudioService.onError?.invoke("playUrl failed: ${e.message ?: "unknown"}")
                 }
             }
         }
@@ -496,11 +496,11 @@ class MainActivity : AppCompatActivity() {
             lastVideoId = videoId
             lastTitle = title; lastArtist = artist
             scope.launch {
+                playRequested = false
+                resolving = true // v2.9: cued resolve in-flight → resume() nunggu prepare selesai
+                AudioService.playGen++
+                val targetGen = AudioService.playGen
                 try {
-                    playRequested = false
-                    resolving = true // v2.9: cued resolve in-flight → resume() nunggu prepare selesai
-                    AudioService.playGen++
-                    val targetGen = AudioService.playGen
                     val info = StreamResolver.resolve(videoId, title, artist)
                     val p = AudioService.player ?: run { resolving = false; return@launch }
                     if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
@@ -522,9 +522,10 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     AudioService.mediaGen = targetGen
                     playingVideoId = videoId // v3.3: cued item benar2 dimuat
-                    resolving = false // v2.9
+                    if (targetGen == AudioService.playGen) resolving = false // v2.9
                     if (playRequested) { playRequested = false; p.play() }
                 } catch (e: Exception) {
+                    if (targetGen != AudioService.playGen) return@launch // v3.5
                     resolving = false
                     playRequested = false
                     // v3.2: video resolve gagal → fallback AUDIO path (play()), bukan engine WebView
@@ -552,11 +553,11 @@ class MainActivity : AppCompatActivity() {
         /** v2.7: prepare jalur video — resolve video (tanpa play) untuk cued track. */
         fun prepareVideo(videoId: String, title: String, artist: String, startSeconds: Double) {
             scope.launch {
+                playRequested = false
+                resolving = true // v2.9
+                AudioService.playGen++
+                val targetGen = AudioService.playGen
                 try {
-                    playRequested = false
-                    resolving = true // v2.9
-                    AudioService.playGen++
-                    val targetGen = AudioService.playGen
                     val pair = StreamResolver.resolveVideo(videoId, 0)
                     val p = AudioService.player ?: run { resolving = false; return@launch }
                     if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
@@ -584,9 +585,10 @@ class MainActivity : AppCompatActivity() {
                     p.prepare()
                     AudioService.mediaGen = targetGen
                     playingVideoId = videoId // v3.3: prepareVideo — cued video dimuat
-                    resolving = false // v2.9
+                    if (targetGen == AudioService.playGen) resolving = false // v2.9
                     if (playRequested) { playRequested = false; p.play() } // v2.9: resume mid-resolve → play
                 } catch (e: Exception) {
+                    if (targetGen != AudioService.playGen) return@launch // v3.5
                     // video gagal → tetap prepare audio; videoMode tetap ON (lagu berikut coba video lagi)
                     resolving = false
                     playRequested = false
