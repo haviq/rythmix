@@ -337,6 +337,9 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       if (window.__rmPlaying) { clearTimeout(window.__rmWatchdog); }
       if (changed && _rmEv.onStateChange) _rmEv.onStateChange({ data: s });
     };
+    // v3.1: true kalau player masih dalam proses valid (playing/buffering) —
+    // watchdog fallback jangan ganggu (dulu buffering 8s dianggap macet → double setMediaItem = lagu restart dari 0)
+    window.__rmBusy = function() { return _rmSt.state === 1 || _rmSt.state === 3; };
     window.__rmOnError = function() { if (_rmEv.onError) _rmEv.onError({ data: 2 }); };
     window.YT = {
       PlayerState: { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 },
@@ -576,7 +579,8 @@ function startCurrent() {
     window.__rmPlaying = false;
     clearTimeout(window.__rmWatchdog);
     window.__rmWatchdog = setTimeout(() => {
-      if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
+      // v3.1: skip fallback kalau player masih playing/buffering (double setMediaItem = restart dari 0)
+      if (!window.__rmPlaying && !window.__rmBusy() && window.__nativeMode && window.RichMusicBridge) {
         try { __rmNativeFallback(s.videoId); } catch (e) {}
       }
     }, 8000);
@@ -973,9 +977,11 @@ function maybeRetryLyrics() {
   const durChanged = Math.abs(dur - (Player._lyricsDur || 0)) > 2;
   // v2.9: synced tapi versi beda (LRC terakhir jauh dari durasi video) → re-fetch
   // dengan durasi asli — server pilih versi pas. Sekali saja (flag retried).
+  // v3.1: threshold 32→110s — intro >32s valid (auto-offset v3.1 handle sampe 120s),
+  // jangan salah anggap versi salah & re-fetch modal yang sama.
   const lines = Player.lyrics.synced ? parseLRC(Player.lyrics.synced) : [];
   const lastT = lines.length ? lines[lines.length - 1].t : 0;
-  const wrongVersion = !!lastT && (lastT > dur + 5 || dur - lastT > 32);
+  const wrongVersion = !!lastT && (lastT > dur + 5 || dur - lastT > 110);
   if ((noLyrics || (durChanged && !Player.lyrics.synced) || wrongVersion) && !Player._lyricsRetried) {
     Player._lyricsRetried = true;
     loadLyrics(s, { silent: true });
@@ -1013,8 +1019,9 @@ function applyAutoOffset(force) {
     return false;
   }
   // MV dgn intro: selisih durasi video vs LRC = intro → geser lirik maju
-  if (lastT > 30 && dur > lastT + 4 && dur < lastT + 60) {
-    const o = Math.min(30, Math.round((dur - lastT - 2) * 10) / 10);
+  // v3.1: jangkauan diperluas (dulu ≤60s; intro lagu bisa >60s) — offset = dur − lastT − 2
+  if (lastT > 30 && dur > lastT + 4) {
+    const o = Math.min(120, Math.round((dur - lastT - 2) * 10) / 10);
     if (o !== Player.lyricOffset) { Player.lyricOffset = o; localStorage.setItem(lyOffKey(), String(o)); return true; }
     return false;
   }
