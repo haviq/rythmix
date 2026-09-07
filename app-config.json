@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 63,
-    "versionName": "3.6",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.6/rythmix-v3.6.apk",
-    "notes": "v3.6: Fix bug bar muter terus & lagu tumpang tindih karena ExoPlayer gak di clearMediaItems. Progress bar bisa riset ke 0 sekarang pas next."
+    "versionCode": 65,
+    "versionName": "3.6.2",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.6/rythmix-v3.6.2.apk",
+    "notes": "v3.6.2: Fix bar nyangkut tengah saat ganti lagu (ala YouTube Music): tick lama dicegah bocor selama resolve, progress dipaksa reset ke 0:00 seketika."
   },
   "maintenance": {
     "enabled": false,
