@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 62,
-    "versionName": "3.5",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.5/rythmix-v3.5.apk",
-    "notes": "v3.5: Fix bug ketumpuk (lagu pertama keputar lagi/lirik ketumpuk) saat skip cepat. Resolving state dan onError sekarang diasingkan."
+    "versionCode": 63,
+    "versionName": "3.6",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.6/rythmix-v3.6.apk",
+    "notes": "v3.6: Fix bug bar muter terus & lagu tumpang tindih karena ExoPlayer gak di clearMediaItems. Progress bar bisa riset ke 0 sekarang pas next."
   },
   "maintenance": {
     "enabled": false,
