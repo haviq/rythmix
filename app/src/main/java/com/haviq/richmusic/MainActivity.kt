@@ -472,6 +472,7 @@ class MainActivity : AppCompatActivity() {
                     p.play()
                     playingVideoId = lastVideoId // v3.3: fallback path — lastVideoId diset sync di play()
                     AudioService.mediaGen = targetGen
+                    resolving = false // v3.4: clear guard juga di path sukses (dulu nyangkut → pause/resume mati)
                     // v2.4: re-attach EQ/viz (playUrl path juga ganti media item)
                     AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
                     val dur = p.duration / 1000

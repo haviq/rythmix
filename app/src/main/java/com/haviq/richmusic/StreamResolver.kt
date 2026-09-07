@@ -151,16 +151,48 @@ object StreamResolver {
         return audio.content
     }
 
+    // v3.4: NewPipeExtractor v0.26.5 MATI (YouTube blok innertube visitor_id → balikin HTML).
+    // Fallback native langsung: loader.to via server API (path terbukti jalan) — tanpa nunggu
+    // JS watchdog, jadi lagu mulai dlm ~5-10s meski NewPipe mati.
+    private fun viaLoader(videoId: String): String {
+        val startUrl = URL("https://rythmix-music.vercel.app/api/download-start?videoId=$videoId")
+        val st = (startUrl.openConnection() as HttpURLConnection).let { c ->
+            c.connectTimeout = 10_000; c.readTimeout = 15_000
+            c.inputStream.bufferedReader().use { it.readText() }
+        }
+        val obj = JSONObject(st)
+        val progressUrl = obj.optString("progressUrl")
+        if (progressUrl.isBlank()) throw IllegalStateException("loader: no progress url")
+        repeat(30) {
+            Thread.sleep(1000)
+            val body = (URL(progressUrl).openConnection() as HttpURLConnection).let { c ->
+                c.connectTimeout = 10_000; c.readTimeout = 15_000
+                c.inputStream.bufferedReader().use { it.readText() }
+            }
+            val p = JSONObject(body)
+            if (p.optInt("success") == 1 && p.optString("download_url").isNotBlank()) {
+                return p.getString("download_url")
+            }
+            if (p.optString("text") == "error") throw IllegalStateException("loader: job error")
+        }
+        throw IllegalStateException("loader: timeout")
+    }
+
     suspend fun resolve(videoId: String, preferredTitle: String = "", preferredArtist: String = ""): StreamInfo =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             val hit = cache[videoId]
             val url = if (hit != null && now - hit.second < CACHE_MS) hit.first else {
-                // fast retry: cold NewPipe can flake (signature fetch); retry 3x quickly
+                // fast retry: cold NewPipe can flake (signature fetch); retry 3x quickly.
+                // v3.4: NewPipe v0.26.5 mati total (YouTube blok innertube) → setelah 3x gagal,
+                // coba loader.to native fallback (5-10s) sebelum nyerah ke JS.
                 var fresh: String? = null
                 var last: Exception? = null
                 repeat(3) {
                     try { fresh = viaNewPipe(videoId); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(250) }
+                }
+                if (fresh == null) {
+                    try { fresh = viaLoader(videoId); last = null } catch (e: Exception) { last = e }
                 }
                 val f = fresh ?: throw (last ?: IllegalStateException("resolve failed"))
                 cache[videoId] = f to now
