@@ -337,6 +337,18 @@ class MainActivity : AppCompatActivity() {
     // JS bridge — exposed as window.RichMusicBridge on the UI WebView.
     // Playback happens in AudioService (ExoPlayer resolved via StreamResolver);
     // engine WebView only used when ExoPlayer path unavailable.
+
+    // v3.1: ExoPlayer error → evict dead URL dari StreamResolver cache supaya
+    // retry (startCurrent 2x + fallback) resolve fresh, bukan nyangkut URL busuk.
+    companion object {
+        @Volatile private var lastErrorVideoId: String? = null
+        fun onPlaybackError() {
+            val vid = lastErrorVideoId ?: return
+            StreamResolver.evict(vid)
+        }
+        fun trackErrorCandidate(videoId: String?) { lastErrorVideoId = videoId }
+    }
+
     inner class JSBridge {
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         @Volatile private var lastVideoId: String? = null
@@ -378,6 +390,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     lastVideoId = videoId
                     lastTitle = title; lastArtist = artist
+                    MainActivity.trackErrorCandidate(videoId)
                     AudioService.notifTitle = title; AudioService.notifArtist = artist
                     // v4.0.2: stop old item NOW + align gens so stray resume()/stale ticks
                     // can't resurrect the previous song (pause/resume blink on track switch)

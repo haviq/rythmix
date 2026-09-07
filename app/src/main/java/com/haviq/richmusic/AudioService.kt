@@ -222,6 +222,9 @@ class AudioService : Service() {
                 updateNotification()
             }
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                // v3.1: URL cached bisa dead (403/expired signature) — buang biar retry
+                // path resolve fresh. Tanpa ini lagu gagal terus tiap play sampai cache expired.
+                MainActivity.onPlaybackError()
                 onError?.invoke("ExoPlayer: ${error.errorCodeName} - ${error.message}")
             }
         })

@@ -174,6 +174,13 @@ object StreamResolver {
             StreamInfo(url, preferredTitle.ifBlank { videoId }, preferredArtist, 0L)
         }
 
+    // v3.1: playback error → URL di-cache kemungkinan dead (403/signature expired) —
+    // evict supaya retry resolve fresh, bukan nyangkut URL busuk sampe 5.5 jam.
+    fun evict(videoId: String) {
+        if (videoId.isBlank()) return
+        if (cache.remove(videoId) != null) persist()
+    }
+
     // background pre-warm: fill cache for upcoming queue items so clicking next is instant
     fun prewarm(videoId: String) {
         if (videoId.isBlank()) return
