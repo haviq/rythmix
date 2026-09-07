@@ -365,6 +365,9 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       // ponytail: reset stale state — old song's dur must not pollute first lyrics query
       _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
       window.Player._lyricsDur = 0; // v2.8: durasi lagu baru ≠ lagu lama → auto-offset boleh recompute
+      // v3.6: reset smoothCur interpolation cache — tanpa ini, _lastCur = posisi laga lama
+      // dan progress loop bisa interpoalsi dari posisi tengah sebelum native tick 0 datang.
+      _lastCur = 0; _lastCurAt = 0;
       // native path: bridge.play resolves via NewPipe Extractor in-app (~1-2s), no loader.to
       // fallback: JS resolves via download API if NewPipe fails (__rmNativeFallback)
       // v2.7: videoMode persist — play saat videoMode aktif → playVideo langsung
