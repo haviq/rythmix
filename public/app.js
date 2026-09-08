@@ -629,17 +629,19 @@ function startCurrent() {
         $('#np-cur').textContent = '0:00';
         if (window.syncFloatProgress) window.syncFloatProgress(0);
       } catch (e) { }
-      // watchdog: if NewPipe resolve stalls (>8s, no PLAYING yet) auto-switch to the
+      // watchdog: if NewPipe resolve stalls (no PLAYING yet) auto-switch to the
       // proven download-API path so the track starts without a manual re-tap.
+      // v3.7b: 20s (bukan 8s) — native resolve sekarang race NewPipe vs loader.to
+      // yang butuh 12-15s; watchdog 8s nembak fallback dobel → job konversi kedua
+      // → playUrl restart lagu dari 0 saat resolve pertama selesai.
       window.__rmPlaying = false;
       clearTimeout(window.__rmWatchdog);
       window.__rmWatchdog = setTimeout(() => {
-        // v3.2: fallback saat 8s belum PLAYING — BUFFERING 8s+ = resolve macet, bukan proses valid.
-        // Hanya skip kalau udah PLAYING (lagu baru udah jalan).
-        if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
+        // Hanya skip kalau udah PLAYING (lagu baru udah jalan) atau resolve masih valid (busy).
+        if (!window.__rmPlaying && !window.__rmBusy() && window.__nativeMode && window.RichMusicBridge) {
           try { __rmNativeFallback(s.videoId); } catch (e) { }
         }
-      }, 8000);
+      }, 20000);
       Player.yt.setPlaybackRate(Player.speed);
       Player.yt.playVideo();
       applyPlaybackQuality();
