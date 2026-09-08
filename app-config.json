@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 66,
-    "versionName": "3.7",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.7/rythmix-v3.7.apk",
-    "notes": "v3.7: Fix blank menu/play mobile + Slider kecepatan pemutaran lagu."
+    "versionCode": 67,
+    "versionName": "3.8",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.8/rythmix-v3.8.apk",
+    "notes": "v3.8: Pindah lagu instan no-delay (hard stop sisa lagu lama), perbaikan sinkronisasi lirik tanpa intro panjang (0.0-2.0s), dan slider kecepatan."
   },
   "maintenance": {
     "enabled": false,
