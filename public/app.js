@@ -554,7 +554,7 @@ function restoreQueue() {
   Player.index = Math.min(Math.max(0, Number(st.index) || 0), Player.queue.length - 1);
   Player.shuffle = !!st.shuffle;
   Player.repeat = (st.repeat === 1 || st.repeat === 2) ? st.repeat : 0;
-  if (typeof st.speed === 'number' && st.speed > 0) Player.speed = st.speed;
+  if (typeof st.speed === 'number' && st.speed > 0) { Player.speed = st.speed; if ($('#np-speed-slider')) $('#np-speed-slider').value = st.speed; if(window.rmNative && window.rmNative.setSpeed) window.rmNative.setSpeed(st.speed); }
   Player.cued = true;
   Player.pending = null;
   const s = Player.current;
@@ -910,15 +910,7 @@ async function loadSponsorBlock(videoId) {
     if (Player.sbSegments.length && Player.sbEnabled) toast(`SponsorBlock: ${Player.sbSegments.length} segment(s) will be skipped`);
   } catch { }
 }
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
-function cycleSpeed() {
-  const i = SPEEDS.indexOf(Player.speed);
-  Player.speed = SPEEDS[(i + 1) % SPEEDS.length];
-  if (Player.yt && Player.ready) Player.yt.setPlaybackRate(Player.speed);
-  $('#np-speed span').textContent = Player.speed + '×';
-  persistQueue();
-  toast(`Speed: ${Player.speed}×`);
-}
+
 function toggleSB() {
   Player.sbEnabled = !Player.sbEnabled;
   store.set('sb_on', Player.sbEnabled);
@@ -3251,7 +3243,7 @@ $('#np-repeat').addEventListener('click', function () {
   persistQueue();
   toast(['Repeat off', 'Repeat all', 'Repeat one'][Player.repeat]);
 });
-$('#np-speed').addEventListener('click', cycleSpeed);
+
 
 /* ================= Equalizer + Visualizer + Local file (v1.1) ================= */
 function openEqualizer() {
@@ -4145,3 +4137,31 @@ window.addEventListener('pagehide', persistQueue);
 document.addEventListener('visibilitychange', () => { if (document.hidden) persistQueue(); });
 restoreQueue();
 route();
+
+// Speed Slider logic
+if ($('#np-speed-toggle')) {
+  $('#np-speed-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const w = $('#speed-slider-wrap');
+    w.style.display = w.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', (e) => {
+    const w = $('#speed-slider-wrap');
+    if (w && w.style.display !== 'none' && !e.target.closest('.speed-wrap')) {
+      w.style.display = 'none';
+    }
+  });
+  $('#np-speed-slider').addEventListener('input', (e) => {
+    const speed = parseFloat(e.target.value);
+    Player.speed = speed;
+    $('#speed-label').textContent = speed + '×';
+    if (Player.yt && Player.ready) Player.yt.setPlaybackRate(speed);
+    if (window.rmNative && window.rmNative.setSpeed) {
+      window.rmNative.setSpeed(speed);
+    }
+  });
+  $('#np-speed-slider').addEventListener('change', (e) => { // simpan cfg kalau dilepas
+    saveConfig({ speed: parseFloat(e.target.value) });
+    toast(`Speed: ${Player.speed}×`);
+  });
+}

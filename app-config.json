@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 63,
-    "versionName": "3.6",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.6/rythmix-v3.6.apk",
-    "notes": "v3.6: Progress bar reset instan ke 0:00 saat ganti lagu (ala YouTube Music), posisi bar lagu lama gak nyangkut lagi."
+    "versionCode": 66,
+    "versionName": "3.7",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.7/rythmix-v3.7.apk",
+    "notes": "v3.7: Fix blank menu/play mobile + Slider kecepatan pemutaran lagu."
   },
   "maintenance": {
     "enabled": false,

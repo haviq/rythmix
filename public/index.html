@@ -205,7 +205,12 @@ try {
             <button id="np-more" class="pill-btn" title="More"><svg class="ic"><use href="#i-more"/></svg><span>More</span></button>
             <button id="np-download" class="pill-btn np-extra" title="Download"><svg class="ic"><use href="#i-download"/></svg><span>Download</span></button>
             <button id="np-share" class="pill-btn np-extra" title="Share"><svg class="ic"><use href="#i-share"/></svg><span>Share</span></button>
-            <button id="np-speed" class="pill-btn np-extra" title="Playback speed"><svg class="ic"><use href="#i-clock"/></svg><span>1×</span></button>
+            <div class="speed-wrap np-extra" title="Playback speed">
+              <button id="np-speed-toggle" class="pill-btn"><svg class="ic"><use href="#i-clock"/></svg><span id="speed-label">1×</span></button>
+              <div id="speed-slider-wrap" style="display:none; position:absolute; bottom:120%; background:var(--c-bg); border:1px solid var(--c-border); border-radius:12px; padding:10px; width:40px; height:120px; z-index:90;">
+                <input type="range" id="np-speed-slider" min="0.5" max="2.0" step="0.25" value="1" orient="vertical" style="appearance:slider-vertical; height:100%; width:100%;">
+              </div>
+            </div>
             <button id="np-eq" class="pill-btn np-extra" title="Equalizer"><svg class="ic"><use href="#i-eq"/></svg><span>EQ</span></button>
             <button id="np-viz" class="pill-btn np-extra" title="Visualizer"><svg class="ic"><use href="#i-wave"/></svg><span>Viz</span></button>
             <button id="np-float" class="pill-btn np-extra" title="Floating widget"><svg class="ic"><use href="#i-pip"/></svg><span>Widget</span></button>
