@@ -30,6 +30,11 @@ object StreamResolver {
     // NewPipe Downloader init (one-time)
     @Volatile private var newpipeReady = false
 
+    // v3.7 circuit breaker: NewPipeExtractor v0.26.5 MATI total (YT blok innertube→HTML,
+    // tidak ada rilis fix). Tanpa ini tiap play bayar pajak 3x retry gagal (3-9s) sebelum
+    // loader.to. Sekali mati → semua play langsung loader.to; sukses NewPipe = nyalain lagi.
+    @Volatile private var newpipeDead = false
+
     // videoId -> resolved url, expire ~5.5h (YT signed URL valid ~6h)
     private val cache = ConcurrentHashMap<String, Pair<String, Long>>()
     private const val CACHE_MS = 5L * 60 * 60 * 1000
@@ -132,8 +137,11 @@ object StreamResolver {
             if (hit != null && now - hit.second < CACHE_MS) return@withContext VideoPair(hit.first, null)
             var fresh: VideoPair? = null
             var last: Exception? = null
-            repeat(3) {
-                try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
+            if (!newpipeDead) {
+                repeat(3) {
+                    try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
+                }
+                if (fresh == null) newpipeDead = true // v3.7
             }
             val f = fresh ?: throw (last ?: IllegalStateException("video resolve failed"))
             cache[key] = f.video to now
@@ -188,11 +196,19 @@ object StreamResolver {
                 // coba loader.to native fallback (5-10s) sebelum nyerah ke JS.
                 var fresh: String? = null
                 var last: Exception? = null
-                repeat(3) {
-                    try { fresh = viaNewPipe(videoId); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(250) }
+                if (!newpipeDead) {
+                    repeat(3) {
+                        try { fresh = viaNewPipe(videoId); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(250) }
+                    }
+                    if (fresh == null) newpipeDead = true // v3.7: circuit breaker buka
                 }
                 if (fresh == null) {
                     try { fresh = viaLoader(videoId); last = null } catch (e: Exception) { last = e }
+                }
+                // v3.7: half-open — sesekali cek NewPipe balik hidup (probe murah, biar
+                // begitu YT/NPE fix, path cepat nyala lagi sendiri)
+                if (newpipeDead) {
+                    try { viaNewPipe(videoId).let { probed -> if (probed.isNotBlank()) { newpipeDead = false; cache[videoId] = probed to now; persist() } } } catch (_: Exception) {}
                 }
                 val f = fresh ?: throw (last ?: IllegalStateException("resolve failed"))
                 cache[videoId] = f to now

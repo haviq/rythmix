@@ -439,6 +439,8 @@ class MainActivity : AppCompatActivity() {
                     p.play()
                     playingVideoId = videoId // v3.3: item benar2 dimuat sekarang
                     AudioService.mediaGen = targetGen
+                    // v3.6.2: tick reset paksa — pastikan UI lompat ke 0:00 bareng lagu baru
+                    pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, ${p.duration / 1000})")
                     if (targetGen == AudioService.playGen) {
                         resolving = false
                         engineVideoActive = false
