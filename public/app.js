@@ -3158,6 +3158,21 @@ $('#mini-play').addEventListener('click', (e) => { e.stopPropagation(); togglePl
 $('#mini-next').addEventListener('click', (e) => { e.stopPropagation(); nextTrack(false); });
 $('#mini-prev').addEventListener('click', (e) => { e.stopPropagation(); prevTrack(); });
 $('#mini-like').addEventListener('click', (e) => { e.stopPropagation(); if (Player.current) Library.toggleFav(Player.current); });
+if ($('#mini-close')) {
+  $('#mini-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    Player.current = null;
+    Player.queue = [];
+    Player.index = -1;
+    persistQueue();
+    if (Player.yt && typeof Player.yt.stopVideo === 'function') Player.yt.stopVideo();
+    $('#miniplayer').classList.add('hidden');
+    closeNowPlaying();
+    document.body.classList.remove('has-player', 'paused');
+    document.title = 'Rythmix Music';
+    toast('Player closed');
+  });
+}
 /* open Now Playing from art / title / expand button (Spotify behaviour) */
 const openNP = (e) => {
   e.stopPropagation();
