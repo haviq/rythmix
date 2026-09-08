@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 65,
-    "versionName": "3.6.2",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.6.2/rythmix-v3.6.2.apk",
-    "notes": "v3.6.2: Fix bar nyangkut tengah saat ganti lagu (ala YouTube Music): tick lama dicegah bocor selama resolve, progress dipaksa reset ke 0:00 seketika."
+    "versionCode": 66,
+    "versionName": "3.7",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.7/rythmix-v3.7.apk",
+    "notes": "v3.7a: Fix play di mobile (resolve NewPipe vs loader.to di-race paralel + TTL cache per-sumber), guard tick kompatibel epoch+videoId, lirik/progress gak ikut lagu lama saat ganti lagu."
   },
   "maintenance": {
     "enabled": false,

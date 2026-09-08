@@ -206,14 +206,14 @@ function applyPlaybackQuality() {
   if (Player.hq) {
     const best = bestQuality();
     Player.quality = best;
-    try { Player.yt.setSize(1920, 1080); } catch {}
-    try { Player.yt.setPlaybackQuality(best); } catch {}
-    try { Player.yt.setPlaybackQualityRange(best, best); } catch {}
+    try { Player.yt.setSize(1920, 1080); } catch { }
+    try { Player.yt.setPlaybackQuality(best); } catch { }
+    try { Player.yt.setPlaybackQualityRange(best, best); } catch { }
   } else {
     Player.quality = 'hd720';
-    try { Player.yt.setSize(720, 720); } catch {}
-    try { Player.yt.setPlaybackQuality('hd720'); } catch {}
-    try { Player.yt.setPlaybackQualityRange('hd720', 'hd720'); } catch {}
+    try { Player.yt.setSize(720, 720); } catch { }
+    try { Player.yt.setPlaybackQuality('hd720'); } catch { }
+    try { Player.yt.setPlaybackQualityRange('hd720', 'hd720'); } catch { }
   }
 }
 function updateQualityButton() {
@@ -270,18 +270,18 @@ window.onYouTubeIframeAPIReady = () => {
         Player.yt.setVolume(Number(v));
         applyPlaybackQuality();
         // v2.6/2.7: restore video mode — web: iframe pindah ke panel NP; native: class utk rect sync
-        try { if (Player.videoMode) { document.body.classList.add('show-video'); if (!window.__nativeMode) moveWebVideo(true); } } catch {}
+        try { if (Player.videoMode) { document.body.classList.add('show-video'); if (!window.__nativeMode) moveWebVideo(true); } } catch { }
         try {
           const iframe = Player.yt.getIframe && Player.yt.getIframe();
           if (iframe) iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
-        } catch {}
+        } catch { }
       },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.ENDED) {
           try {
             const vid = Player.yt.getVideoData && Player.yt.getVideoData().video_id;
             if (vid && Player.current && vid !== Player.current.videoId) return;
-          } catch {}
+          } catch { }
           // ponytail: debounce — ENDED re-fires every 250ms from ticker while next track resolves;
           // without this each re-fire calls nextTrack → concurrent resolve/setMediaItem = pause/resume spam
           if (Player._switching) return;
@@ -290,6 +290,13 @@ window.onYouTubeIframeAPIReady = () => {
         }
         if (e.data === YT.PlayerState.PLAYING) {
           Player._switching = false;
+          // v3.7: PLAYING epoch lama (lagu sebelumnya) jangan clear _switching —
+          // dulu: ENDED lagu lama → _switching=true → tick PLAYING lama telat datang
+          // → _switching=false → ENDED re-fire → nextTrack ganda = "ikut lagu pertama".
+          try {
+            const vid = Player.yt.getVideoData && Player.yt.getVideoData().video_id;
+            if (vid && Player.current && vid !== Player.current.videoId) return;
+          } catch { }
           setTimeout(maybeRetryLyrics, 600);
           applyPlaybackQuality();
           setTimeout(applyPlaybackQuality, 500);
@@ -325,11 +332,17 @@ window.onYouTubeIframeAPIReady = () => {
 if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/) || [])[1] || '')) {
   // native mode: shim YT.Player backed by RichMusicBridge (Kotlin ExoPlayer)
   window.__nativeMode = true;
-  (function() {
+  (function () {
     var _rmEv = {};
     var _rmSt = { state: -1, time: 0, dur: 0 };
     window.__rmState = _rmSt; // same object ref — mutated in place below
-    window.__rmNativeUpdate = function(s, t, d) {
+    // v3.7: tick di-tag videoId oleh native — tick/status milik lagu lama (ticker 250ms telat
+    // atau pushToJs terlambat) dibuang → lirik & progress tidak "ikut lagu pertama".
+    // Tanpa counter: sinkron alami dengan lastVideoId native, tidak mungkin drift.
+    // Kompabilitas dua arah: arg epoch angka (APK epoch-lama) = tak bisa divalidasi → terima;
+    // arg videoId string ≠ lagu aktif = tick lagu lama → buang.
+    window.__rmNativeUpdate = function (s, t, d, tag) {
+      if (typeof tag === 'string' && tag && window.Player && Player.current && Player.current.videoId && tag !== Player.current.videoId) return;
       var dur = d > 0 ? d : _rmSt.dur;
       var changed = s !== _rmSt.state || dur !== _rmSt.dur;
       _rmSt.state = s; _rmSt.time = t; _rmSt.dur = dur;
@@ -339,23 +352,23 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
     };
     // v3.1: true kalau player masih dalam proses valid (playing/buffering) —
     // watchdog fallback jangan ganggu (dulu buffering 8s dianggap macet → double setMediaItem = lagu restart dari 0)
-    window.__rmBusy = function() { return _rmSt.state === 1 || _rmSt.state === 3; };
-    window.__rmOnError = function() { if (_rmEv.onError) _rmEv.onError({ data: 2 }); };
+    window.__rmBusy = function () { return _rmSt.state === 1 || _rmSt.state === 3; };
+    window.__rmOnError = function () { if (_rmEv.onError) _rmEv.onError({ data: 2 }); };
     // v3.2: native ExoPlayer path gagal → engine fallback dikirim; app.js tidak punya mkPlayer
     // (iframe diblokir background) → reset state & lempar error ke UI biar retry path audio jalan.
-    window.__rmEngineMode = function() {
+    window.__rmEngineMode = function () {
       _rmSt.state = -1;
       if (_rmEv.onError) _rmEv.onError({ data: 2 });
     };
     window.YT = {
       PlayerState: { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 },
-      Player: function(id, opts) {
+      Player: function (id, opts) {
         _rmEv = (opts && opts.events) || {};
         var self = this;
-        setTimeout(function() { if (_rmEv.onReady) _rmEv.onReady({ target: self }); }, 0);
+        setTimeout(function () { if (_rmEv.onReady) _rmEv.onReady({ target: self }); }, 0);
       }
     };
-    YT.Player.prototype.loadVideoById = function(opts) {
+    YT.Player.prototype.loadVideoById = function (opts) {
       if (window.Player) window.Player._prepared = false; // full play path, not a prepped resume
       var id = typeof opts === 'string' ? opts : (opts && opts.videoId);
       var start = (opts && opts.startSeconds) || 0;
@@ -364,6 +377,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       var artist = (s && s.artist) || '';
       // ponytail: reset stale state — old song's dur must not pollute first lyrics query
       _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
+      window.__rmPlaying = false; // watchdog fallback boleh jalan untuk lagu baru
       window.Player._lyricsDur = 0; // v2.8: durasi lagu baru ≠ lagu lama → auto-offset boleh recompute
       // v3.6: reset smoothCur interpolation cache — tanpa ini, _lastCur = posisi laga lama
       // dan progress loop bisa interpoalsi dari posisi tengah sebelum native tick 0 datang.
@@ -379,7 +393,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
         window.RichMusicBridge.play(id, title, artist, startArg);
       }
     };
-    YT.Player.prototype.cueVideoById = function(opts) {
+    YT.Player.prototype.cueVideoById = function (opts) {
       // native: prepare (resolve+setMediaItem+prepare, NO play) so a restored (cued)
       // track starts instantly on tap — skips resolve+buffer inside the play() path.
       if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prepare) {
@@ -387,54 +401,65 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
         var start = (opts && opts.startSeconds) || 0;
         var s = window.Player && window.Player.current;
         if (window.Player) window.Player._prepared = true;
+        // v3.7: state/tick lagu lama hangus (guard videoId di __rmNativeUpdate)
+        _rmSt.state = -1; _rmSt.time = 0; _rmSt.dur = 0;
+        window.__rmPlaying = false;
         window.RichMusicBridge.prepare(id, (s && s.title) || '', (s && s.artist) || '', start);
         return;
       }
       this.loadVideoById(opts);
     };
-    YT.Player.prototype.playVideo = function() {
+    YT.Player.prototype.playVideo = function () {
       // no optimistic state — native pushes real state from main thread in ms;
       // optimistic here fights real ticks and causes pause/resume spam on track switch
       window.RichMusicBridge.resume();
     };
-    YT.Player.prototype.pauseVideo = function() {
+    YT.Player.prototype.pauseVideo = function () {
       window.RichMusicBridge.pause();
     };
-    YT.Player.prototype.stopVideo = function() { window.RichMusicBridge.stop(); };
-    YT.Player.prototype.seekTo = function(t) { window.RichMusicBridge.seekTo(t); };
-    YT.Player.prototype.setVolume = function(v) { window.RichMusicBridge.setVolume(v / 100); };
-    YT.Player.prototype.setPlaybackRate = function(r) { window.RichMusicBridge.setRate(r); };
-    YT.Player.prototype.setSize = function() {};
-    YT.Player.prototype.setPlaybackQualityRange = function() {};
-    YT.Player.prototype.setPlaybackQuality = function() {};
-    YT.Player.prototype.getCurrentTime = function() { return _rmSt.time; };
-    YT.Player.prototype.getDuration = function() { return _rmSt.dur; };
-    YT.Player.prototype.getPlayerState = function() { return _rmSt.state; };
-    YT.Player.prototype.getVideoData = function() {
+    YT.Player.prototype.stopVideo = function () { window.RichMusicBridge.stop(); };
+    YT.Player.prototype.seekTo = function (t) { window.RichMusicBridge.seekTo(t); };
+    YT.Player.prototype.setVolume = function (v) { window.RichMusicBridge.setVolume(v / 100); };
+    YT.Player.prototype.setPlaybackRate = function (r) { window.RichMusicBridge.setRate(r); };
+    YT.Player.prototype.setSize = function () { };
+    YT.Player.prototype.setPlaybackQualityRange = function () { };
+    YT.Player.prototype.setPlaybackQuality = function () { };
+    YT.Player.prototype.getCurrentTime = function () { return _rmSt.time; };
+    YT.Player.prototype.getDuration = function () { return _rmSt.dur; };
+    YT.Player.prototype.getPlayerState = function () { return _rmSt.state; };
+    YT.Player.prototype.getVideoData = function () {
       var s = window.Player && window.Player.current;
       return s ? { video_id: s.videoId, title: s.title, author: s.artist || '' } : { video_id: '', title: '', author: '' };
     };
-    YT.Player.prototype.getIframe = function() { return null; };
-    YT.Player.prototype.getAvailableQualityLevels = function() { return ['hd720']; };
-    YT.Player.prototype.destroy = function() { window.RichMusicBridge.stop(); };
-    // fallback: bridge.play error → resolve via loader.to (slow path) then playUrl
-    window.__rmNativeFallback = function(videoId) {
+    YT.Player.prototype.getIframe = function () { return null; };
+    YT.Player.prototype.getAvailableQualityLevels = function () { return ['hd720']; };
+    YT.Player.prototype.destroy = function () { window.RichMusicBridge.stop(); };
+    // fallback: bridge.play error → force use web IFrame (Engine Mode)
+    // Sejak NewPipe mati, loader.to via API tidak bisa diandalkan & bikin nyangkut.
+    // Memaksa mode Engine menjamin musik selalu muter lewat player resmi YT di web.
+    window.__rmNativeFallback = function (videoId) {
       if (!videoId) return;
       var s = window.Player && window.Player.current;
-      if (!s || s.videoId !== videoId) return; // v3.6: guard lagu telat 1
-      var title = (s && s.title) || ''; var artist = (s && s.artist) || '';
-      toast('Menyiapkan audio…');
-      resolveStreamUrl(videoId)
-        .then(function(url) { 
-          var cur = window.Player && window.Player.current;
-          if (!cur || cur.videoId !== videoId) return; // v3.6: guard lagu telat 2
-          window.RichMusicBridge.playUrl(url, title, artist, 0); 
-        })
-        .catch(function(e) { 
-          var cur = window.Player && window.Player.current;
-          if (!cur || cur.videoId !== videoId) return; // v3.6: guard lagu telat 3
-          window.__rmOnError && window.__rmOnError(String(e && e.message || 'resolve failed')); 
-        });
+      if (!s || s.videoId !== videoId) return;
+
+      toast('Memutar via mode web darurat...');
+
+      // Matikan ExoPlayer sepenuhnya supaya tidak bentrok
+      try { window.RichMusicBridge.stop(); } catch (e) { }
+      try { window.RichMusicBridge.setVideoMode(false); } catch (e) { }
+
+      // Hapus flag __nativeMode SEMENTARA untuk lagu ini supaya app.js
+      // memperlakukan HP seperti browser PC biasa (mengandalkan Iframe YT)
+      window.__nativeMode = false;
+
+      // Mainkan ulang lagu lewat jalur Web Iframe biasa
+      if (window.Player && window.Player.yt && window.Player.yt.loadVideoById) {
+        window.Player.yt.loadVideoById({ videoId: videoId, startSeconds: 0 });
+        window.Player.yt.playVideo();
+      }
+
+      // Kembalikan flag agar fitur native lain (seperti EQ/Volume) tidak crash
+      setTimeout(function () { window.__nativeMode = true; }, 5000);
     };
     window.onYouTubeIframeAPIReady();
   })();
@@ -520,7 +545,7 @@ function persistQueue() {
       repeat: Player.repeat || 0,
       speed: Player.speed || 1,
     });
-  } catch {}
+  } catch { }
 }
 function restoreQueue() {
   const st = store.get('qstate', null);
@@ -541,7 +566,7 @@ function restoreQueue() {
     try {
       Player.yt.cueVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
       Player.yt.setPlaybackRate(Player.speed);
-    } catch {}
+    } catch { }
   };
   tryCue();
   renderNowPlaying();
@@ -581,6 +606,7 @@ function startCurrent() {
   Player.cued = false;
   Player.pending = null;
   Player._playErrors = 0;
+  Player._switching = false; // v3.7: ganti lagu = reset debounce ENDED
   const s = Player.current;
   if (!s) return;
   const loadId = ++Player.loadId;
@@ -588,90 +614,95 @@ function startCurrent() {
   const xfSec = Number(store.get('rm_xfade', 0)) || 0;
   const doLoad = () => {
     if (loadId !== Player.loadId) return;
-  const tryPlay = () => {
-    if (loadId !== Player.loadId) return;
-    if (!Player.ready) return setTimeout(tryPlay, 300);
-    Player.yt.loadVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
-    // v3.6.2: ala YouTube Music — begitu lagu baru mulai, UI progress DIPAKSA ke 0:00
-    // seketika (jangan nunggu tick native/durasi baru). Tick lama yg telat datang diabaikan
-    // karena _rmSt.time/_lastCur sudah di-reset di loadVideoById.
-    try {
-      $('#mini-progress-fill').style.width = '0%';
-      const k = $('.pb-knob'); if (k) k.style.left = '0%';
-      $('#mini-cur').textContent = '0:00';
-      $('#np-range').value = 0;
-      $('#np-cur').textContent = '0:00';
-      if (window.syncFloatProgress) window.syncFloatProgress(0);
-    } catch (e) {}
-    // watchdog: if NewPipe resolve stalls (>8s, no PLAYING yet) auto-switch to the
-    // proven download-API path so the track starts without a manual re-tap.
-    window.__rmPlaying = false;
-    clearTimeout(window.__rmWatchdog);
-    window.__rmWatchdog = setTimeout(() => {
-      // v3.2: fallback saat 8s belum PLAYING — BUFFERING 8s+ = resolve macet, bukan proses valid.
-      // Hanya skip kalau udah PLAYING (lagu baru udah jalan).
-      if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
-        try { __rmNativeFallback(s.videoId); } catch (e) {}
-      }
-    }, 8000);
-    Player.yt.setPlaybackRate(Player.speed);
-    Player.yt.playVideo();
-    applyPlaybackQuality();
-    setTimeout(applyPlaybackQuality, 400);
-    setTimeout(applyPlaybackQuality, 1600);
-  };
-  tryPlay();
-  Library.pushHistory(s);
-  Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
-  Player._lyricsRetried = false;
-  Player._lyricsDur = 0;
-  lastLyricIdx = -1;
-  syncFloatLyric('');
-  renderNowPlaying();
-  renderQueue();
-  updateLikeButtons();
-  $('#miniplayer').classList.remove('hidden');
-  document.body.classList.add('has-player', 'paused');
-  document.title = `${s.title} • Rythmix Music`;
-  applyTint(s.videoId || s.title);
-  if ('mediaSession' in navigator) {
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: s.title, artist: s.artist || '',
-      artwork: s.thumbnail ? [{ src: s.thumbnail, sizes: '544x544' }] : [],
-    });
-    navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
-    navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack(false));
-    navigator.mediaSession.setActionHandler('play', () => Player.yt && Player.yt.playVideo());
-    navigator.mediaSession.setActionHandler('pause', () => Player.yt && Player.yt.pauseVideo());
-  }
-  if (window.__nativeMode) {
-    // v4.0.2: fetch immediately with duration=0 (LRCLIB exact-0 fallback works);
-    // maybeRetryLyrics re-fetches with the real duration once PLAYING. Waiting for
-    // PLAYING before any fetch made lyrics lag the song by seconds.
-    loadLyrics(s);
-    $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
-    $('#lyrics-source').textContent = '';
-    $('#np-lyric-preview').textContent = '';
+    const tryPlay = () => {
+      if (loadId !== Player.loadId) return;
+      if (!Player.ready) return setTimeout(tryPlay, 300);
+      Player.yt.loadVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
+      // v3.6.2: ala YouTube Music — begitu lagu baru mulai, UI progress DIPAKSA ke 0:00
+      // seketika (jangan nunggu tick native/durasi baru). Tick lama yg telat datang diabaikan
+      // karena _rmSt.time/_lastCur sudah di-reset di loadVideoById.
+      try {
+        $('#mini-progress-fill').style.width = '0%';
+        const k = $('.pb-knob'); if (k) k.style.left = '0%';
+        $('#mini-cur').textContent = '0:00';
+        $('#np-range').value = 0;
+        $('#np-cur').textContent = '0:00';
+        if (window.syncFloatProgress) window.syncFloatProgress(0);
+      } catch (e) { }
+      // watchdog: if NewPipe resolve stalls (>8s, no PLAYING yet) auto-switch to the
+      // proven download-API path so the track starts without a manual re-tap.
+      window.__rmPlaying = false;
+      clearTimeout(window.__rmWatchdog);
+      window.__rmWatchdog = setTimeout(() => {
+        // v3.2: fallback saat 8s belum PLAYING — BUFFERING 8s+ = resolve macet, bukan proses valid.
+        // Hanya skip kalau udah PLAYING (lagu baru udah jalan).
+        if (!window.__rmPlaying && window.__nativeMode && window.RichMusicBridge) {
+          try { __rmNativeFallback(s.videoId); } catch (e) { }
+        }
+      }, 8000);
+      Player.yt.setPlaybackRate(Player.speed);
+      Player.yt.playVideo();
+      applyPlaybackQuality();
+      setTimeout(applyPlaybackQuality, 400);
+      setTimeout(applyPlaybackQuality, 1600);
+    };
+    tryPlay();
+    Library.pushHistory(s);
+    Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
+    Player._lyricsRetried = false;
+    Player._lyricsDur = 0;
+    lastLyricIdx = -1;
+    // v4.1: reset offset & marker manual per lagu — offset salah dari sesi lama
+    // tidak boleh menempel ke lagu baru (auto-sync recompute dari nol)
+    Player.lyricOffset = 0;
+    Player.sbSkipped = 0;
+    if (s.videoId) { try { localStorage.removeItem('rm_loff_' + s.videoId); localStorage.removeItem('rm_lman_' + s.videoId); } catch { } }
     syncFloatLyric('');
-  } else loadLyrics(s);
-  if (Player.sbEnabled) loadSponsorBlock(s.videoId); else { Player.sbSegments = []; Player.sbSkipped = 0; }
-  // pre-warm upcoming queue URLs (silent) so clicking next is instant
-  try {
-    Player.queue.slice(Player.index + 1, Player.index + 4).forEach(function(q) {
-      if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prewarm) window.RichMusicBridge.prewarm(q.videoId);
-      else if (q && q.videoId) resolveStreamUrl(q.videoId, { quiet: true }).catch(function() {});
-    });
-  } catch {}
-  // refresh related tab lazily
-  Player.relatedBrowseId = null; // stale — belongs to the previous song until fetchQueue returns
-  Player.lyricsBrowseId = null;
-  $('#related-list').innerHTML = '<div class="loading-note">Loading…</div>';
-  Player._relatedLoaded = false;
-  // if the Related tab is currently open, reload it right away for the new song
-  // (small delay so fetchQueue for the new song has started first)
-  if ($('#np-related').classList.contains('active') && !$('#nowplaying').classList.contains('hidden')) {
-    setTimeout(() => loadRelated(true), 150);
-  }
+    renderNowPlaying();
+    renderQueue();
+    updateLikeButtons();
+    $('#miniplayer').classList.remove('hidden');
+    document.body.classList.add('has-player', 'paused');
+    document.title = `${s.title} • Rythmix Music`;
+    applyTint(s.videoId || s.title);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: s.title, artist: s.artist || '',
+        artwork: s.thumbnail ? [{ src: s.thumbnail, sizes: '544x544' }] : [],
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack(false));
+      navigator.mediaSession.setActionHandler('play', () => Player.yt && Player.yt.playVideo());
+      navigator.mediaSession.setActionHandler('pause', () => Player.yt && Player.yt.pauseVideo());
+    }
+    if (window.__nativeMode) {
+      // v4.0.2: fetch immediately with duration=0 (LRCLIB exact-0 fallback works);
+      // maybeRetryLyrics re-fetches with the real duration once PLAYING. Waiting for
+      // PLAYING before any fetch made lyrics lag the song by seconds.
+      loadLyrics(s);
+      $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+      $('#lyrics-source').textContent = '';
+      $('#np-lyric-preview').textContent = '';
+      syncFloatLyric('');
+    } else loadLyrics(s);
+    if (Player.sbEnabled) loadSponsorBlock(s.videoId); else { Player.sbSegments = []; Player.sbSkipped = 0; }
+    // pre-warm upcoming queue URLs (silent) so clicking next is instant
+    try {
+      Player.queue.slice(Player.index + 1, Player.index + 4).forEach(function (q) {
+        if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prewarm) window.RichMusicBridge.prewarm(q.videoId);
+        else if (q && q.videoId) resolveStreamUrl(q.videoId, { quiet: true }).catch(function () { });
+      });
+    } catch { }
+    // refresh related tab lazily
+    Player.relatedBrowseId = null; // stale — belongs to the previous song until fetchQueue returns
+    Player.lyricsBrowseId = null;
+    $('#related-list').innerHTML = '<div class="loading-note">Loading…</div>';
+    Player._relatedLoaded = false;
+    // if the Related tab is currently open, reload it right away for the new song
+    // (small delay so fetchQueue for the new song has started first)
+    if ($('#np-related').classList.contains('active') && !$('#nowplaying').classList.contains('hidden')) {
+      setTimeout(() => loadRelated(true), 150);
+    }
   }; // end doLoad
   // v2.3: crossfade schedule — fade-out lagu lama lalu load baru; tanpa xfade langsung load
   if (xfSec > 0 && Player.yt && Player.ready) {
@@ -682,8 +713,8 @@ function startCurrent() {
       const fi = setInterval(() => {
         if (loadId !== Player.loadId) { clearInterval(fi); return; }
         n++;
-        try { Player.yt.setVolume(baseVol * (1 - n / steps)); } catch {}
-        if (n >= steps) { clearInterval(fi); try { Player.yt.setVolume(baseVol); } catch {} doLoad(); }
+        try { Player.yt.setVolume(baseVol * (1 - n / steps)); } catch { }
+        if (n >= steps) { clearInterval(fi); try { Player.yt.setVolume(baseVol); } catch { } doLoad(); }
       }, Math.round((xfSec * 1000) / steps));
     } catch { doLoad(); }
   } else doLoad();
@@ -751,13 +782,13 @@ function prevTrack() {
   else if (Player.yt) Player.yt.seekTo(0);
 }
 // notification/broadcast controls from native (prev/next/loop/shuffle)
-window.__rmNotifCmd = function(cmd) {
+window.__rmNotifCmd = function (cmd) {
   try {
     if (cmd === 'next') nextTrack(false);
     else if (cmd === 'prev') prevTrack();
-    else if (cmd === 'loop') { Player.repeat = ((Player.repeat || 0) + 1) % 3; toast('Repeat: ' + ['off','all','one'][Player.repeat]); }
+    else if (cmd === 'loop') { Player.repeat = ((Player.repeat || 0) + 1) % 3; toast('Repeat: ' + ['off', 'all', 'one'][Player.repeat]); }
     else if (cmd === 'shuffle') { Player.shuffle = !Player.shuffle; toast('Shuffle ' + (Player.shuffle ? 'on' : 'off')); }
-  } catch (e) {}
+  } catch (e) { }
 };
 function togglePlay() {
   if (!Player.current) return;
@@ -817,7 +848,11 @@ setInterval(() => {
     const seg = Player.sbSegments.find((g) => cur >= g.start && cur < g.end - 0.3);
     if (seg) {
       Player.yt.seekTo(seg.end, true);
-      Player.sbSkipped += seg.end - seg.start; // keep lyrics in sync with actual song timeline
+      // v4.1: recompute dari posisi seek, bukan akumulasi — seek mundur melewati
+      // segment tidak lagi meninggalkan sbSkipped basi yang merusak highlight lirik
+      Player.sbSkipped = Player.sbSegments
+        .filter((g) => g.end <= seg.end)
+        .reduce((a, g) => a + (g.end - g.start), 0);
       toast(`⏩ Skipped ${seg.category.replace('_', ' ')} (SponsorBlock)`);
     }
   }
@@ -825,7 +860,7 @@ setInterval(() => {
   // v2.7: durasi baru diketahui setelah PLAYING (APK tick 250ms) → auto-offset ulang di sini
   if (dur && dur !== Player._lyricsDur) {
     Player._lyricsDur = dur;
-    try { if (applyAutoOffset()) syncLyricOffsetUI(); } catch {}
+    try { if (applyAutoOffset()) syncLyricOffsetUI(); } catch { }
   }
   const pct = dur ? (cur / dur) * 100 : 0;
   $('#mini-progress-fill').style.width = pct + '%';
@@ -842,7 +877,7 @@ setInterval(() => {
   syncFloatProgress(pct);
   if (Player.floatOn) drawPipFrame(pct);
   // v2.7: ikuti layout NP (scroll/rotate/resize) — video tetap nempel kotak thumbnail
-  try { syncVideoRect(); } catch {}
+  try { syncVideoRect(); } catch { }
 }, 100);
 
 function renderPlayButtons() {
@@ -871,7 +906,7 @@ async function loadSponsorBlock(videoId) {
     if (!cur || cur.videoId !== myVid) return;
     Player.sbSegments = d.segments || [];
     if (Player.sbSegments.length && Player.sbEnabled) toast(`SponsorBlock: ${Player.sbSegments.length} segment(s) will be skipped`);
-  } catch {}
+  } catch { }
 }
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 function cycleSpeed() {
@@ -912,7 +947,7 @@ async function fallbackLrclib(title, artist) {
       const plain = hit.plainLyrics || null;
       // v2.6: simpan durasi kandidat biar auto-offset intro bisa jalan juga dari jalur ini
       if (synced || plain) return { synced, plain, source: 'LRCLIB', duration: hit.duration || 0 };
-    } catch {}
+    } catch { }
   }
   return null;
 }
@@ -920,6 +955,11 @@ async function fallbackLrclib(title, artist) {
 async function loadLyrics(song, { silent = false } = {}) {
   if (!song) return;
   const myReq = ++lyricsReqId;
+  const myVid = song.videoId || '';
+  // v3.7: lagu sudah bukan yang aktif saat fetch mulai → jangan fetch + jangan render.
+  // Identitas lagu (videoId), bukan cuma reqId, yang jadi kunci stale-guard.
+  const songIsCurrent = () => !myVid || !!(Player.current && Player.current.videoId === myVid);
+  if (!songIsCurrent()) return;
   const durationSec = (() => {
     if (Player.yt && Player.ready && Player.yt.getDuration) {
       const d = Math.round(Player.yt.getDuration() || 0);
@@ -948,7 +988,7 @@ async function loadLyrics(song, { silent = false } = {}) {
     try {
       d = await api(`/api/lyrics?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}&duration=${durationSec}&browseId=${encodeURIComponent(Player.lyricsBrowseId || '')}`);
     } catch { d = null; }
-    if (myReq !== lyricsReqId) return;
+    if (myReq !== lyricsReqId || !songIsCurrent()) return; // v3.7: stale by song identity
     if (Player.lyrics.synced && d && !d.synced) return; // never downgrade
     // server missed it — try LRCLIB directly (covers covers / auto-gen tracks)
     let fb = null;
@@ -969,9 +1009,9 @@ async function loadLyrics(song, { silent = false } = {}) {
           const cap = await api(`/api/captions?v=${encodeURIComponent(vid)}`);
           if (cap && cap.synced) d = { synced: cap.synced, plain: null, source: cap.source || 'YouTube captions' };
           // caption gagal → d tetap (offset manual tersedia)
-        } catch {}
+        } catch { }
       }
-    } catch {}
+    } catch { }
     // v2.2: caption fallback — subtitle video itu sendiri (cover/remake yg judulnya
     // beda total dari judul asli). Dipanggil saat semua katalog teks gagal.
     if (!d || (!d.synced && !d.plain)) {
@@ -981,24 +1021,27 @@ async function loadLyrics(song, { silent = false } = {}) {
           const cap = await api(`/api/captions?v=${encodeURIComponent(vid)}`);
           if (cap && cap.synced) d = { synced: cap.synced, plain: null, source: cap.source || 'YouTube captions' };
         }
-      } catch {}
+      } catch { }
     }
-    // v3.5: guard stale sebelum nulis — antara guard awal (line 928) dan sini ada
+    // v3.5/v3.7: guard stale sebelum nulis — antara guard awal dan sini ada
     // 3 await (fallbackLrclib + captions x2). Lagu baru di-click di tengah await →
     // respons lama nyampe belakangan → timpa lirik lagu baru (lirik ngikut lagu pertama).
-    if (myReq !== lyricsReqId) return;
+    // v3.7: guard juga pakai identitas lagu (videoId), bukan cuma reqId.
+    if (myReq !== lyricsReqId || (myVid && !songIsCurrent())) return;
     if (!d || (!d.synced && !d.plain)) {
       if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
     } else {
       Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
       // v2.7: auto-offset intro (baseline = durasi video − durasi lirik) — manual menang
-      try { applyAutoOffset(); } catch {}
+      try { applyAutoOffset(); } catch { }
     }
   } catch {
-    if (myReq !== lyricsReqId) return;
+    if (myReq !== lyricsReqId || (myVid && !songIsCurrent())) return;
     if (!Player.lyrics.synced && !Player.lyrics.plain) Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
   }
-  renderLyrics();
+  // v3.7: render hanya kalau respons ini memang untuk lagu yang sedang tampil.
+  // Dulu: renderLyrics() selalu jalan → respons lama menimpa DOM lirik lagu baru.
+  if (myReq === lyricsReqId && (!myVid || songIsCurrent())) renderLyrics();
 }
 /* retry once the real duration is known (player loaded after first attempt),
    or when the first attempt found nothing */
@@ -1035,6 +1078,10 @@ function lyOffKey() { return 'rm_loff_' + (Player.current && Player.current.vide
 /* v2.8: offset manual kini pakai marker terpisah (rm_lman_) — dulu nilai auto disimpan
    ke key yang sama dgn manual, jadi v2.8 tak bisa recompute offset auto yang lama/salah. */
 function lyManKey() { return 'rm_lman_' + (Player.current && Player.current.videoId || ''); }
+/* v4.1: konversi dua arah LRC ↔ timeline audio (scale + offset + sbSkipped).
+   Satu sumber kebenaran — highlight, klik-seek, dan skip semua lewat sini. */
+function lrcToAudio(t) { return t * (Player.lyricScale || 1) + (Player.lyricOffset || 0) + (Player.sbSkipped || 0); }
+function audioToLrc(t) { return (t - (Player.lyricOffset || 0) - (Player.sbSkipped || 0)) / (Player.lyricScale || 1); }
 /* v2.8: auto-offset intro — recompute BERULANG (durasi bisa telat datang / berubah kualitas).
    Offset manual user selalu menang (marker rm_lman_). */
 function applyAutoOffset(force) {
@@ -1045,19 +1092,35 @@ function applyAutoOffset(force) {
   if (String(L.source || '').toLowerCase().includes('caption')) return false;
   const lastT = L.lines[L.lines.length - 1].t;
   const dur = (Player.yt && Player.ready && Player.yt.getDuration && Math.round(Player.yt.getDuration() || 0)) || 0;
-  if (!dur) return false;
+  if (!dur || lastT < 30) return false;
   // v2.8: LRC pas dgn timeline (audio studio / caption) → offset 0.
   // (dulu: offset dari sesi video tersisa saat balik audio → lirik molor, tak pernah dikoreksi)
-  if (lastT > 30 && dur >= lastT && dur < lastT + 4) {
+  if (dur >= lastT && dur < lastT + 4) {
     if (Player.lyricOffset !== 0) { Player.lyricOffset = 0; localStorage.setItem(lyOffKey(), '0'); return true; }
     return false;
   }
-  // MV dgn intro: selisih durasi video vs LRC = intro → geser lirik maju
-  // v3.1: jangkauan diperluas (dulu ≤60s; intro lagu bisa >60s) — offset = dur − lastT − 2
-  if (lastT > 30 && dur > lastT + 4) {
+  // v4.1: 2-param sync — LRC versi beda tempo (live/speed-up/remaster) selisihnya bukan
+  // cuma intro: skala + offset menangkap LRC lebih pendek ATAU lebih panjang.
+  // audio_t ≈ (dur / lastT) × lrc_t + shift. Guard ketat biar tidak "koreksi" noise.
+  if (dur > 60 && Math.abs(dur - lastT) > 4) {
+    const scale = dur / lastT;
+    if (scale >= 0.8 && scale <= 1.25) {
+      const shift = Math.min(30, Math.max(-30, Math.round((dur - lastT - 2) * 10) / 10));
+      const key = scale.toFixed(3) + '|' + shift.toFixed(1);
+      if (Player._lyricSyncKey !== key) {
+        Player._lyricSyncKey = key;
+        Player.lyricScale = scale;
+        Player.lyricOffset = shift;
+        localStorage.setItem(lyOffKey(), String(shift));
+        return true;
+      }
+      return false;
+    }
+  }
+  // fallback lama: MV intro (LRC lebih pendek banyak → bukan beda tempo)
+  if (dur > lastT + 4) {
     const o = Math.min(120, Math.round((dur - lastT - 2) * 10) / 10);
     if (o !== Player.lyricOffset) { Player.lyricOffset = o; localStorage.setItem(lyOffKey(), String(o)); return true; }
-    return false;
   }
   return false;
 }
@@ -1067,6 +1130,8 @@ function syncLyricOffsetUI() {
 }
 function adjLyricOffset(d) {
   Player.lyricOffset = Math.min(30, Math.max(-30, Math.round((Player.lyricOffset + d) * 10) / 10));
+  Player.lyricScale = 1; // manual adjust = koreksi halus, matikan skala
+  Player._lyricSyncKey = null;
   localStorage.setItem(lyOffKey(), Player.lyricOffset);
   localStorage.setItem(lyManKey(), '1'); // v2.8: manual marker — auto tak akan menimpa lagi
   syncLyricOffsetUI();
@@ -1076,14 +1141,17 @@ function initLyricToolbar() {
   $$('.lyr-adj').forEach(b => b.addEventListener('click', () => adjLyricOffset(parseFloat(b.dataset.d))));
 }
 function renderLyrics() {
-  Player.lyricOffset = parseFloat(localStorage.getItem(lyOffKey())) || 0;
+  // v4.1: jangan timpa offset hasil reset auto-sync — localStorage hanya sumber
+  // saat nilai belum di-set sesi ini (0 berarti memang belum/reset)
+  const saved = parseFloat(localStorage.getItem(lyOffKey())) || 0;
+  if (!Player._lyricSyncKey && !localStorage.getItem(lyManKey())) Player.lyricOffset = saved;
   syncLyricOffsetUI();
   const c = $('#lyrics-container');
   const src = $('#lyrics-source');
   const L = Player.lyrics;
   if (L.lines.length) {
     c.innerHTML = L.lines.map((l, i) => `<div class="lyric-line" data-i="${i}" data-t="${l.t}">${esc(l.text) || '♪'}</div>`).join('');
-    $$('.lyric-line', c).forEach((el) => el.addEventListener('click', () => { Player.yt.seekTo(parseFloat(el.dataset.t) + Player.lyricOffset + Player.sbSkipped); Player.yt.playVideo(); }));
+    $$('.lyric-line', c).forEach((el) => el.addEventListener('click', () => { Player.yt.seekTo(lrcToAudio(parseFloat(el.dataset.t))); Player.yt.playVideo(); }));
   } else if (L.plain) {
     c.innerHTML = `<div class="lyric-plain">${esc(L.plain)}</div>`;
   } else {
@@ -1137,7 +1205,7 @@ function updateLyricHighlight(cur) {
   const L = Player.lyrics;
   if (!L.lines.length) return;
   let idx = -1;
-  for (let i = 0; i < L.lines.length; i++) { if (cur >= L.lines[i].t + Player.lyricOffset + Player.sbSkipped - 0.2) idx = i; else break; }
+  for (let i = 0; i < L.lines.length; i++) { if (cur >= lrcToAudio(L.lines[i].t) - 0.2) idx = i; else break; }
   if (idx === lastLyricIdx) return;
   lastLyricIdx = idx;
   const c = $('#lyrics-container');
@@ -1380,7 +1448,7 @@ async function loadRelated(force = false) {
         paint(relatedSectionsHTML(d.sections));
         return;
       }
-    } catch {}
+    } catch { }
   }
   if (!sameSong()) { Player._relatedLoaded = false; return; }
 
@@ -1395,7 +1463,7 @@ async function loadRelated(force = false) {
           paint(relatedSectionsHTML(rel.sections));
           return;
         }
-      } catch {}
+      } catch { }
     }
     const items = (d.queue || [])
       .filter((q) => q.videoId && q.videoId !== vid)
@@ -1405,7 +1473,7 @@ async function loadRelated(force = false) {
       paint(shelfHTML({ title: 'Similar songs', items, list: true }));
       return;
     }
-  } catch {}
+  } catch { }
   if (sameSong()) renderFail();
 }
 
@@ -1455,7 +1523,7 @@ async function downloadSong(song, format) {
           lastProg = pct;
           toast(pct <= 5 && p.text ? String(p.text) : `Converting "${song.title}"… ${pct}%`);
         }
-      } catch {}
+      } catch { }
     }
     if (!url) throw new Error('timeout');
     toast(`Downloading "${song.title}"…`);
@@ -1522,20 +1590,20 @@ function resolveStreamUrl(videoId, { quiet = false } = {}) {
   if (!streamCache.has(videoId)) {
     if (!quiet) toast('Menyiapkan audio…');
     streamCache.set(videoId, api('/api/download-start?videoId=' + encodeURIComponent(videoId))
-      .then(function(st) {
+      .then(function (st) {
         if (!st.progressUrl) throw new Error('no progress url');
         var delay = 1000;
         function poll() {
           return api('/api/download-progress?progressUrl=' + encodeURIComponent(st.progressUrl))
-            .then(function(d) {
+            .then(function (d) {
               if (d.done && d.url) return d.url;
               if (d.error) throw new Error(d.error);
-              return new Promise(function(r) { setTimeout(r, delay); }).then(poll);
+              return new Promise(function (r) { setTimeout(r, delay); }).then(poll);
             });
         }
         return poll();
       })
-      .catch(function(e) { streamCache.delete(videoId); throw e; }));
+      .catch(function (e) { streamCache.delete(videoId); throw e; }));
   }
   return streamCache.get(videoId);
 }
@@ -1692,7 +1760,7 @@ function bindEmptyCtas(root) {
 function bindItems(root) {
   $$('.card, .quick-card, .sr-top', root).forEach((el) => {
     el.addEventListener('click', () => {
-      try { openItem(JSON.parse(el.dataset.item)); } catch {}
+      try { openItem(JSON.parse(el.dataset.item)); } catch { }
     });
   });
   $$('.track', root).forEach((el) => {
@@ -1800,7 +1868,7 @@ function renderNav() {
   renderSidebarLibrary();
 }
 /* mobile drawer: hamburger → sidebar slide-in; close on backdrop tap or after nav */
-(function() {
+(function () {
   const open = () => document.body.classList.add('drawer-open');
   const close = () => document.body.classList.remove('drawer-open');
   document.addEventListener('click', (e) => {
@@ -1845,7 +1913,7 @@ function renderSidebarLibrary() {
   el.innerHTML = html;
   $$('[data-nav]', el).forEach((b) => b.addEventListener('click', () => go(b.dataset.nav)));
   $$('[data-item]', el).forEach((b) => b.addEventListener('click', () => {
-    try { openItem(JSON.parse(b.dataset.item)); } catch {}
+    try { openItem(JSON.parse(b.dataset.item)); } catch { }
   }));
 }
 const go = (hash) => { location.hash = hash; };
@@ -1896,20 +1964,20 @@ const skeletonHTML = `<div class="page-title">&nbsp;</div>` + Array(3).fill(`
 
 /* ---- Home ---- */
 /* ---------- Rythmix iOS: live clock + weather in header (Home & Charts) ---------- */
-const WMO_ICON = {0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌦',56:'🌧',57:'🌧',61:'🌧',63:'🌧',65:'🌧',66:'🌧',67:'🌧',71:'🌨',73:'🌨',75:'🌨',77:'🌨',80:'🌦',81:'🌧',82:'🌧',85:'🌨',86:'🌨',95:'⛈',96:'⛈',99:'⛈'};
+const WMO_ICON = { 0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️', 45: '🌫', 48: '🌫', 51: '🌦', 53: '🌦', 55: '🌦', 56: '🌧', 57: '🌧', 61: '🌧', 63: '🌧', 65: '🌧', 66: '🌧', 67: '🌧', 71: '🌨', 73: '🌨', 75: '🌨', 77: '🌨', 80: '🌦', 81: '🌧', 82: '🌧', 85: '🌨', 86: '🌨', 95: '⛈', 96: '⛈', 99: '⛈' };
 function helloMetaHTML() { return `<div class="hello-meta"><div class="hello-weather" id="hello-weather"></div><div class="hello-clock" id="hello-clock">--:--</div></div>`; }
 async function fetchHelloWeather() {
   const el = document.getElementById('hello-weather'); if (!el) return;
   let lat = null, lon = null, place = '';
   const pos = await new Promise((r) => navigator.geolocation ? navigator.geolocation.getCurrentPosition((p) => r(p), () => r(null), { timeout: 6000, maximumAge: 600000 }) : r(null));
   if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude; }
-  else { try { const g = await fetch('https://ipwho.is/').then((x) => x.json()); if (g && g.success !== false) { lat = g.latitude; lon = g.longitude; place = g.city || ''; } } catch (e) {} }
+  else { try { const g = await fetch('https://ipwho.is/').then((x) => x.json()); if (g && g.success !== false) { lat = g.latitude; lon = g.longitude; place = g.city || ''; } } catch (e) { } }
   if (lat == null) { el.textContent = ''; return; }
   try {
     const j = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`).then((x) => x.json());
     const t = Math.round(j.current.temperature_2m), c = j.current.weather_code;
     el.innerHTML = `${WMO_ICON[c] || ''} ${t}°${place ? `<span class="hw-place">${esc(place)}</span>` : ''}`;
-  } catch (e) {}
+  } catch (e) { }
 }
 function initHelloMeta() {
   const el = document.getElementById('hello-clock');
@@ -1936,7 +2004,7 @@ function warmResolve(list) {
     const id = ids[next++];
     if (id == null) return;
     launched++;
-    try { window.RichMusicBridge.prewarm(id); } catch (e) {}
+    try { window.RichMusicBridge.prewarm(id); } catch (e) { }
     setTimeout(run, 120);
   };
   for (let i = 0; i < CONC; i++) run();
@@ -1950,7 +2018,7 @@ function collectVisibleVideoIds(root) {
     try {
       const it = JSON.parse(el.dataset.item || '{}');
       if (it && it.videoId) ids.push(it.videoId);
-    } catch (e) {}
+    } catch (e) { }
   });
   return ids;
 }
@@ -2019,7 +2087,7 @@ async function loadMixForYou() {
     if (!items.length) return;
     slot.innerHTML = shelfHTML({ title: `Mix for you · based on “${seed.title}”`, items });
     bindItems(slot);
-  } catch {}
+  } catch { }
 }
 
 /* ---- Search ---- */
@@ -2149,7 +2217,7 @@ function bindSearchChrome(view, q, filter) {
             pushRecentSearch(term);
             go(`#/search/${encodeURIComponent(term)}`);
           }));
-        } catch {}
+        } catch { }
       }, 220);
     });
     input.addEventListener('keydown', (e) => {
@@ -2244,7 +2312,7 @@ async function viewCharts(view) {
 }
 
 /* Spotify browse-tile palette (fallback when YT colors are missing) */
-const MOOD_COLORS = ['#f5b301','#e13300','#7358ff','#e8115b','#b8860b','#dc148c','#bc5900','#8d67ab','#e91429','#1e3264','#537aa1','#af2896','#477d95','#ba5d07','#0d73ec','#8c1932'];
+const MOOD_COLORS = ['#f5b301', '#e13300', '#7358ff', '#e8115b', '#b8860b', '#dc148c', '#bc5900', '#8d67ab', '#e91429', '#1e3264', '#537aa1', '#af2896', '#477d95', '#ba5d07', '#0d73ec', '#8c1932'];
 
 /* ---- Moods ---- */
 async function viewMoods(view) {
@@ -2442,7 +2510,7 @@ async function importFromLink(url) {
       const n = await api(`/api/next?videoId=${encodeURIComponent(r.videoId)}`);
       const hit = (n.queue || []).find((q) => q.videoId === r.videoId) || (n.queue || [])[0];
       if (hit) song = songFromItem(hit);
-    } catch {}
+    } catch { }
     openSongNowPlaying(song);
     return;
   }
@@ -2796,7 +2864,7 @@ async function openSharedSong(videoId) {
     const d = await api(`/api/next?videoId=${encodeURIComponent(videoId)}`);
     const hit = (d.queue || []).find((q) => q.videoId === videoId) || (d.queue || [])[0];
     if (hit) song = songFromItem(hit);
-  } catch {}
+  } catch { }
   openSongNowPlaying(song);
 }
 async function shareSong(song) {
@@ -2872,13 +2940,13 @@ function openSleepTimer() {
           if (k <= 0) {
             clearInterval(iv);
             if (window.__nativeMode && window.RichMusicBridge) { window.RichMusicBridge.setVolume(1); window.RichMusicBridge.pause(); }
-            else if (Player.yt) { try { Player.yt.setVolume(100); } catch (e) {} Player.yt.pauseVideo(); }
+            else if (Player.yt) { try { Player.yt.setVolume(100); } catch (e) { } Player.yt.pauseVideo(); }
             syncSleepLabel();
             toast('Sleep timer: paused');
           } else {
             const vol = Math.round(k * 100);
             if (window.__nativeMode && window.RichMusicBridge) window.RichMusicBridge.setVolume(vol);
-            else if (Player.yt) { try { Player.yt.setVolume(vol); } catch (e) {} }
+            else if (Player.yt) { try { Player.yt.setVolume(vol); } catch (e) { } }
           }
         }, 250);
         syncSleepLabel();
@@ -3046,13 +3114,13 @@ function openAddToPlaylist(song) {
       <button class="pill-btn primary" id="newpl-create" style="margin-bottom:12px">Create & add</button>
       ${pls.length ? `<div class="pl-list-label">Your playlists</div>` : ''}
       ${pls.map((p) => {
-        const cover = p.tracks[0] && p.tracks[0].thumbnail;
-        const n = p.tracks.length;
-        return `<button type="button" class="modal-row pl-pick" data-id="${p.id}">
+      const cover = p.tracks[0] && p.tracks[0].thumbnail;
+      const n = p.tracks.length;
+      return `<button type="button" class="modal-row pl-pick" data-id="${p.id}">
           ${cover ? `<img class="pl-pick-art" src="${esc(cover)}" alt="">` : `<span class="pl-pick-ph">${icon('i-note')}</span>`}
           <span class="pl-pick-meta"><span class="pl-pick-name">${esc(p.name)}</span><span class="pl-pick-count">${n} song${n === 1 ? '' : 's'}</span></span>
         </button>`;
-      }).join('') || '<div class="empty-note">No playlists yet</div>'}`;
+    }).join('') || '<div class="empty-note">No playlists yet</div>'}`;
     $('#q-playnext').addEventListener('click', () => { queueSong(song, true); closeModal(); });
     $('#q-add').addEventListener('click', () => { queueSong(song, false); closeModal(); });
     $('#newpl-create').addEventListener('click', () => {
@@ -3202,7 +3270,7 @@ function openEqualizer() {
   const names = ['60Hz', '230Hz', '910Hz', '3.6k', '14k'];
   // v2.4: engine mode = audio keluar dari iframe, EQ Android tidak tersentuh → jujur ke user.
   let engineMode = false;
-  try { engineMode = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch {}
+  try { engineMode = !!(window.RichMusicBridge.engineMode && window.RichMusicBridge.engineMode()); } catch { }
   // v2.3: preset sekali tap (nilai fraksi dari range, -1..1)
   const EQ_PRESETS = {
     'Flat': [0, 0, 0, 0, 0],
@@ -3314,11 +3382,11 @@ function toggleVideoMode() {
     Player.videoMode = !Player.videoMode;
     store.set('vid_mode', Player.videoMode);
     document.body.classList.toggle('show-video', Player.videoMode);
-    try { moveWebVideo(Player.videoMode); } catch {}
+    try { moveWebVideo(Player.videoMode); } catch { }
     if (Player.videoMode) {
       // pause posisi? iframe tetap jalan — cukup tampilkan; pastikan lagu ter-load
       if (Player.current && Player.current.videoId && Player.yt && Player.ready) {
-        try { Player.yt.loadVideoById(Player.current.videoId, (window.__rmState && window.__rmState.time) || 0); } catch {}
+        try { Player.yt.loadVideoById(Player.current.videoId, (window.__rmState && window.__rmState.time) || 0); } catch { }
       }
       toast('Mode video: ON');
     } else toast('Mode audio: ON');
@@ -3329,7 +3397,7 @@ function toggleVideoMode() {
   store.set('vid_mode', Player.videoMode);
   if (Player.videoMode && Player.current && Player.current.videoId) {
     // v2.5: coba attach overlay dulu — gagal = video jelas tidak jalan
-    try { if (window.RichMusicBridge.retryOverlay && !window.RichMusicBridge.retryOverlay()) { toast('❌ Mode video butuh izin overlay — aktifkan di Settings → Apps → Rythmix'); Player.videoMode = false; store.set('vid_mode', false); return; } } catch {}
+    try { if (window.RichMusicBridge.retryOverlay && !window.RichMusicBridge.retryOverlay()) { toast('❌ Mode video butuh izin overlay — aktifkan di Settings → Apps → Rythmix'); Player.videoMode = false; store.set('vid_mode', false); return; } } catch { }
     // v1.4.1: native shows surface only after video resolve succeeds — no black screen on failure
     const pos = (window.__rmState && window.__rmState.time) || 0;
     window.RichMusicBridge.playVideo(Player.current.videoId, Player.current.title || '', Player.current.artist || '', pos);
@@ -3375,16 +3443,16 @@ function moveWebVideo(on) {
   }
 }
 // native → JS sync (back button exits video, or resolve failed → audio fallback)
-window.__rmVideoToggle = function(on) {
+window.__rmVideoToggle = function (on) {
   Player.videoMode = !!on;
   store.set('vid_mode', Player.videoMode);
   document.body.classList.toggle('show-video', !!on);
-  try { if (!window.__nativeMode) moveWebVideo(!!on); } catch {}
+  try { if (!window.__nativeMode) moveWebVideo(!!on); } catch { }
   requestAnimationFrame(syncVideoRect);
   renderMoreMenu && renderMoreMenu();
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
-window.__rmEngineVideoMode = function(on) {
+window.__rmEngineVideoMode = function (on) {
   if (on) toast('Mode video: ON');
 };
 function toggleVisualizer() {
@@ -3426,7 +3494,7 @@ function toggleVisualizer() {
     toast(Player.vizOn ? 'Visualizer on' : 'Visualizer off');
   }
 }
-window.__rmWave = function(bars) {
+window.__rmWave = function (bars) {
   const viz = $('#np-vizbars');
   if (!viz || !Player.vizOn) return;
   window.__rmWaveAt = Date.now(); // v2.8: real data freshness — sim melanjutkan jika wave mati
@@ -3461,10 +3529,10 @@ function vizSimStart() {
 }
 function vizSimStop() { if (_vizSimTimer) { clearInterval(_vizSimTimer); _vizSimTimer = null; } }
 // mic granted (runtime callback) → confirm viz attached + restart sim layer if idle
-window.__rmMicGranted = function() {
+window.__rmMicGranted = function () {
   if (!Player.vizOn) return;
   toast('Mikrofon diizinkan — visualizer aktif 🎵');
-  try { window.RichMusicBridge.vizOn(true); } catch {}
+  try { window.RichMusicBridge.vizOn(true); } catch { }
   vizSimStart(); // pastikan layar bergerak sampai wave real datang
 };
 /* local file playback (MP4/MP3/M4A) — Library page */
@@ -3518,7 +3586,7 @@ function rmTapPlay(el) {
     else { const st = Player.yt.getPlayerState && Player.yt.getPlayerState(); if (st !== 1) Player.yt.playVideo(); }
   });
 }
-['#mini-art', '#mini-title', '#mini-artist', '#np-art', '#np-title'].forEach((id) => { try { rmTapPlay($(id)); } catch {} });
+['#mini-art', '#mini-title', '#mini-artist', '#np-art', '#np-title'].forEach((id) => { try { rmTapPlay($(id)); } catch { } });
 
 let seekDragging = false;
 const range = $('#np-range');
@@ -3602,7 +3670,7 @@ const FW_CSS = `
   .fw-meta { min-width: 0; flex: 1; }
   #fw-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #fw-artist { font-size: 12px; opacity: .65; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #fw-lyric { margin-top: 5px; font-family: 'Taste Bread HD', Figtree, sans-serif; font-size: 13px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
+  #fw-lyric { margin-top: 5px; font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
   #fw-lyric:empty { display: none; }
   .fw-bar { margin-top: 8px; height: 4px; background: rgba(255,255,255,.22); border-radius: 99px; cursor: pointer; overflow: hidden; }
   html[data-theme="light"] .fw-bar { background: rgba(0,0,0,.18); }
@@ -3794,7 +3862,7 @@ function currentLyricText() {
   if (!L) return '';
   if (L.lines && L.lines.length) {
     let cur = 0;
-    try { cur = (Player.yt && Player.yt.getCurrentTime && Player.yt.getCurrentTime()) || 0; } catch {}
+    try { cur = (Player.yt && Player.yt.getCurrentTime && Player.yt.getCurrentTime()) || 0; } catch { }
     let idx = -1;
     for (let i = 0; i < L.lines.length; i++) {
       if (cur >= L.lines[i].t - 0.2) idx = i;
@@ -3824,10 +3892,10 @@ function currentLyricIndex() {
   const L = Player.lyrics;
   if (!L || !L.lines || !L.lines.length) return -1;
   let cur = 0;
-  try { cur = (Player.yt && Player.yt.getCurrentTime && Player.yt.getCurrentTime()) || 0; } catch {}
+  try { cur = (Player.yt && Player.yt.getCurrentTime && Player.yt.getCurrentTime()) || 0; } catch { }
   let idx = -1;
   for (let i = 0; i < L.lines.length; i++) {
-    if (cur >= L.lines[i].t + Player.lyricOffset + Player.sbSkipped - 0.2) idx = i;
+    if (cur >= lrcToAudio(L.lines[i].t) - 0.2) idx = i;
     else break;
   }
   return idx;
@@ -3965,15 +4033,15 @@ function closeFloatWidget() {
   document.body.classList.remove('float-mode');
   $('#float-widget').classList.add('hidden');
   if (Player.pipWin && !Player.pipWin.closed) {
-    try { Player.pipWin.close(); } catch {}
+    try { Player.pipWin.close(); } catch { }
   }
   Player.pipWin = null;
   if (document.pictureInPictureElement) {
-    document.exitPictureInPicture().catch(() => {});
+    document.exitPictureInPicture().catch(() => { });
   }
   const video = $('#pip-video');
   if (video && video.webkitSetPresentationMode && video.webkitPresentationMode === 'picture-in-picture') {
-    try { video.webkitSetPresentationMode('inline'); } catch {}
+    try { video.webkitSetPresentationMode('inline'); } catch { }
   }
   syncFloatWidget();
 }
@@ -3990,7 +4058,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     rmWasPlaying = Player.yt.getPlayerState && Player.yt.getPlayerState() === 1;
   } else {
-    if (rmWasPlaying) { try { Player.yt.playVideo(); } catch {} }
+    if (rmWasPlaying) { try { Player.yt.playVideo(); } catch { } }
   }
 });
 setInterval(() => {
@@ -3998,14 +4066,14 @@ setInterval(() => {
   if (!Player.yt || !Player.ready || !document.hidden) return;
   if (!rmWasPlaying) return;
   const st = Player.yt.getPlayerState && Player.yt.getPlayerState();
-  if (st === 2) { try { Player.yt.playVideo(); } catch {} }
+  if (st === 2) { try { Player.yt.playVideo(); } catch { } }
 }, 1500);
 
 
 /* cleanup: unregister any previously installed service worker */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
-  if (window.caches) caches.keys().then((ks) => ks.forEach((k) => k.startsWith('smw-') && caches.delete(k))).catch(() => {});
+  navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => { });
+  if (window.caches) caches.keys().then((ks) => ks.forEach((k) => k.startsWith('smw-') && caches.delete(k))).catch(() => { });
 }
 
 /* boot */
