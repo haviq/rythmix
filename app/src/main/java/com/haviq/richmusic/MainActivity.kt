@@ -413,16 +413,10 @@ class MainActivity : AppCompatActivity() {
             AudioService.player?.clearMediaItems()
 
             scope.launch {
-                val p0 = AudioService.player
-                if (p0 != null && AudioService.playGen == AudioService.mediaGen &&
-                    p0.currentMediaItem?.localConfiguration?.uri != null) {
-                    val cur = playingVideoId
-                    if (cur == videoId && (p0.isPlaying || p0.playbackState == androidx.media3.common.Player.STATE_BUFFERING)) { resolving = false; return@launch }
-                }
-            lastVideoId = videoId
-            lastTitle = title; lastArtist = artist
-            MainActivity.trackErrorCandidate(videoId)
-            resolving = true
+                lastVideoId = videoId
+                lastTitle = title; lastArtist = artist
+                MainActivity.trackErrorCandidate(videoId)
+                resolving = true
                 val targetGen = AudioService.playGen
                 try {
                     val info = StreamResolver.resolve(videoId, title, artist)
