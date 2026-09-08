@@ -387,6 +387,11 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun play(videoId: String, title: String, artist: String, startSeconds: Double) {
+            // v3.8: Hard stop lagu lama seketika agar tidak ada delay / sisa lagu pertama yang keputar
+            try {
+                AudioService.player?.stop()
+                AudioService.player?.clearMediaItems()
+            } catch (_: Exception) {}
             // v3.0: resolving disetel SINKRON di sini (bukan dlm coroutine Main) — JS manggil
             // resume() nyaris bersamaan dgn play(); kalau nunggu coroutine, guard kelewat
             // → replay item lama ("ganti musik tetap lagu pertama").
@@ -646,6 +651,9 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface fun setVolume(v: Double) {
             scope.launch { AudioService.player?.volume = v.toFloat().coerceIn(0f, 1f) }
+        }
+        @JavascriptInterface fun setSpeed(speed: Double) {
+            scope.launch { AudioService.player?.playbackParameters = androidx.media3.common.PlaybackParameters(speed.toFloat(), 1f) }
         }
 
         // ---- Equalizer ----
