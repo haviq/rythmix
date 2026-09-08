@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 67,
-    "versionName": "3.8",
-    "url": "https://github.com/haviq/rythmix/releases/download/v3.8/rythmix-v3.8.apk",
-    "notes": "v3.8: Pindah lagu instan no-delay (hard stop sisa lagu lama), perbaikan sinkronisasi lirik tanpa intro panjang (0.0-2.0s), dan slider kecepatan."
+    "versionCode": 68,
+    "versionName": "3.9",
+    "url": "https://github.com/haviq/rythmix/releases/download/v3.9/rythmix-v3.9.apk",
+    "notes": "v3.9: Perbaikan total bug ganti lagu (judul & audio tidak nyangkut) dan lirik auto-sync offset di-set 0 (pas dengan lagu)."
   },
   "maintenance": {
     "enabled": false,

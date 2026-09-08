@@ -1086,9 +1086,13 @@ function audioToLrc(t) { return (t - (Player.lyricOffset || 0) - (Player.sbSkipp
 /* v2.8: auto-offset intro — recompute BERULANG (durasi bisa telat datang / berubah kualitas).
    Offset manual user selalu menang (marker rm_lman_). */
 function applyAutoOffset(force) {
+  // v3.9: Matikan auto offset agar lyric offset selalu 0 (pas dengan lagu)
+  Player.lyricOffset = 0;
+  Player.lyricScale = 1;
+  return false;
   const L = Player.lyrics;
   if (!L.lines.length) return false;
-  if (localStorage.getItem(lyManKey())) return false; // user sudah set manual
+  if (localStorage.getItem(lyManKey())) return false;
   // v2.7: caption video sudah sinkron dengan timeline video — jangan digeser
   if (String(L.source || '').toLowerCase().includes('caption')) return false;
   const lastT = L.lines[L.lines.length - 1].t;
