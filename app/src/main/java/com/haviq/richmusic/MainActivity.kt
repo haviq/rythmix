@@ -387,7 +387,8 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun play(videoId: String, title: String, artist: String, startSeconds: Double) {
-            // v3.8: Hard stop lagu lama seketika agar tidak ada delay / sisa lagu pertama yang keputar
+            // v3.9: Reset playingVideoId seketika agar tidak nyangkut ke lagu lama
+            playingVideoId = null
             try {
                 AudioService.player?.stop()
                 AudioService.player?.clearMediaItems()
