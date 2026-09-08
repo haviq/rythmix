@@ -938,20 +938,27 @@ async function fallbackLrclib(title, artist) {
     `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}&artist_name=${encodeURIComponent(artist)}`,
     `https://lrclib.net/api/search?track_name=${encodeURIComponent(title)}`,
   ];
+  // v3.7c: pilih kandidat dgn durasi terdekat ke audio (bukan d[0]) — LRC versi salah
+  // (speed-up/live/cut beda) = penyebab offset auto molor seperti +29.7s.
+  let best = null, bestScore = Infinity;
   for (const u of tries) {
     try {
       const r = await fetch(u);
       if (!r.ok) continue;
       const d = await r.json();
-      const hit = Array.isArray(d) ? d[0] : d;
-      if (!hit) continue;
-      const synced = hit.syncedLyrics || null;
-      const plain = hit.plainLyrics || null;
-      // v2.6: simpan durasi kandidat biar auto-offset intro bisa jalan juga dari jalur ini
-      if (synced || plain) return { synced, plain, source: 'LRCLIB', duration: hit.duration || 0 };
+      const arr = Array.isArray(d) ? d : [d];
+      for (const hit of arr) {
+        if (!hit || (!hit.syncedLyrics && !hit.plainLyrics)) continue;
+        const diff = dur ? Math.abs((Number(hit.duration) || 0) - Number(dur)) : 0;
+        const score = diff - (hit.syncedLyrics ? 0.5 : 0); // synced menang saat seri
+        if (score < bestScore) { bestScore = score; best = hit; }
+        if (dur && diff <= 2 && hit.syncedLyrics) { best = hit; bestScore = -Infinity; break; } // pas → stop
+      }
+      if (bestScore === -Infinity) break;
     } catch { }
   }
-  return null;
+  if (!best) return null;
+  return { synced: best.syncedLyrics || null, plain: best.plainLyrics || null, source: 'LRCLIB', duration: best.duration || 0 };
 }
 
 async function loadLyrics(song, { silent = false } = {}) {
@@ -1114,6 +1121,7 @@ function applyAutoOffset(force) {
         Player.lyricScale = scale;
         Player.lyricOffset = shift;
         localStorage.setItem(lyOffKey(), String(shift));
+        try { toast('Lirik auto-sync: ' + (shift >= 0 ? '+' : '') + shift.toFixed(1) + 's'); } catch { }
         return true;
       }
       return false;
@@ -1122,7 +1130,11 @@ function applyAutoOffset(force) {
   // fallback lama: MV intro (LRC lebih pendek banyak → bukan beda tempo)
   if (dur > lastT + 4) {
     const o = Math.min(120, Math.round((dur - lastT - 2) * 10) / 10);
-    if (o !== Player.lyricOffset) { Player.lyricOffset = o; localStorage.setItem(lyOffKey(), String(o)); return true; }
+    if (o !== Player.lyricOffset) {
+      Player.lyricOffset = o; localStorage.setItem(lyOffKey(), String(o));
+      try { if (Math.abs(o) > 3) toast('Lirik auto-sync intro: +' + o.toFixed(1) + 's'); } catch { }
+      return true;
+    }
   }
   return false;
 }

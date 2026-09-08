@@ -859,10 +859,22 @@ app.get('/api/lyrics', async (req, res) => {
       title && title !== tUse ? lrclibGet(cleanTitle(title), pa, 0) : null,
     ]);
     // v2.9: duration valid → kandidat dgn durasi pas menang ABSOLUT di atas versi salah.
+    // v3.7c: bukan cuma "cari yang pas" — pilih kandidat TERDEKAT durasinya di semua
+    // exactHits, dan hanya terima yang selisihnya ≤8s. Hit pertama versi salah
+    // (speed-up/live/cut) jangan menang cuma karena datang duluan.
     const durNum = Number(duration) || 0;
-    if (durNum && synced) {
-      const right = exactHits.find((h) => h && h.syncedLyrics && Math.abs((Number(h.duration) || 0) - durNum) <= 5);
-      if (right) { synced = right.syncedLyrics; plain = right.plainLyrics || null; source = 'LRCLIB'; }
+    if (durNum) {
+      const withDur = exactHits.filter((h) => h && h.syncedLyrics && (Number(h.duration) || 0) > 0);
+      if (withDur.length) {
+        let near = null, nearDiff = Infinity;
+        for (const h of withDur) {
+          const diff = Math.abs((Number(h.duration) || 0) - durNum);
+          if (diff < nearDiff) { nearDiff = diff; near = h; }
+        }
+        if (near && nearDiff <= 8 && (!synced || nearDiff <= 5)) {
+          synced = near.syncedLyrics; plain = near.plainLyrics || null; source = 'LRCLIB';
+        }
+      }
     }
     for (const hit of exactHits) {
       if (!hit) continue;
