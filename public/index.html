@@ -178,6 +178,10 @@ try {
       </div>
       <div class="np-body">
         <section id="np-player" class="np-pane active">
+          <div class="np-mode-row" id="np-mode-row">
+            <button type="button" id="np-mode-audio" class="np-mode-btn active" title="Mode audio"><svg class="ic"><use href="#i-note"/></svg>Audio</button>
+            <button type="button" id="np-mode-video" class="np-mode-btn" title="Mode video"><svg class="ic"><use href="#i-play"/></svg>Video</button>
+          </div>
           <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" />
             <!-- v2.7: video menimpa thumbnail (web: iframe di slot; native: placeholder rect utk ExoPlayer) -->
             <div id="np-video"><div class="np-video-crop"><div id="np-video-slot"></div></div></div>
@@ -275,8 +279,8 @@ try {
   <canvas id="pip-canvas" width="360" height="640"></canvas>
   <video id="pip-video" muted playsinline autoplay></video>
 </div>
-<script src="app.js?v=v38"></script>
-<link rel="stylesheet" href="styles.css?v=v38" />
+<script src="app.js?v=v38b"></script>
+<link rel="stylesheet" href="styles.css?v=v38b" />
 <script src="app-config.js?v=3"></script>
 </body>
 </html>

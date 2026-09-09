@@ -2276,6 +2276,35 @@ html[data-theme="light"] .np-tab {
   color: #111;
 }
 
+/* ---------- audio/video mode switch (v3.8) ---------- */
+.np-mode-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 2px 0 10px;
+}
+.np-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--card-hover);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
+}
+.np-mode-btn .ic { width: 14px; height: 14px; fill: currentColor; }
+.np-mode-btn:hover { color: var(--text); transform: scale(1.03); }
+.np-mode-btn.active {
+  color: #0b0b0f;
+  background: linear-gradient(150deg, var(--accent-bright), var(--accent));
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
 html[data-theme="light"] .np-tab.active {
   background: #fff;
   color: #111;

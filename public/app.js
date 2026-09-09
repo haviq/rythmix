@@ -894,6 +894,22 @@ function renderPlayButtons() {
   syncFloatWidget();
 }
 
+/* v3.8: tombol Audio/Video di Now Playing — mirror state Player.videoMode */
+function renderModeButtons() {
+  const a = $('#np-mode-audio'), v = $('#np-mode-video');
+  if (!a || !v) return;
+  a.classList.toggle('active', !Player.videoMode);
+  v.classList.toggle('active', !!Player.videoMode);
+}
+function initModeButtons() {
+  const a = $('#np-mode-audio'), v = $('#np-mode-video');
+  if (!a || !v || a._wired) return;
+  a._wired = true;
+  a.addEventListener('click', () => { if (Player.videoMode) toggleVideoMode(); renderModeButtons(); });
+  v.addEventListener('click', () => { if (!Player.videoMode) toggleVideoMode(); renderModeButtons(); });
+  renderModeButtons();
+}
+
 /* ================= SponsorBlock / votes / speed / video ================= */
 async function loadSponsorBlock(videoId) {
   Player.sbSegments = [];
@@ -3500,6 +3516,7 @@ window.__rmVideoToggle = function (on) {
   try { if (!window.__nativeMode) moveWebVideo(!!on); } catch { }
   requestAnimationFrame(syncVideoRect);
   renderMoreMenu && renderMoreMenu();
+  renderModeButtons();
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
 window.__rmEngineVideoMode = function (on) {
@@ -4167,6 +4184,7 @@ updateQualityButton();
 syncNpMore();
 bindFloatWidget(document);
 enableDrag($('#float-widget'));
+initModeButtons(); // v3.8: tombol Audio/Video di Now Playing
 const savedVol = store.get('vol', 100);
 $('#mini-volume').value = savedVol;
 $('#np-volume').value = savedVol;
