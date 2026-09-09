@@ -3509,6 +3509,18 @@ body.hq-audio #yt-player {
 
 body.show-video #np-player.active #np-video {
   display: block;
+  /* v4.3: landscape 16:9 — bukan kotak. Lebar penuh area art, tinggi ikut rasio,
+     rata atas; native & web sama-sama mengikuti rect elemen ini. */
+  inset: auto 0 auto 0;
+  top: 0;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+/* v4.3: wrap ikut landscape saat video — tak ada ruang kotak kosong di bawah */
+body.show-video #np-player.active .np-art-wrap {
+  aspect-ratio: 16 / 9;
+  width: min(100%, 560px);
 }
 
 body.show-video #np-player.active #np-art {
