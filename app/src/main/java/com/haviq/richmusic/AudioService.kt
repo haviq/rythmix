@@ -149,6 +149,7 @@ class AudioService : Service() {
         @JvmStatic fun engineSeek(seconds: Double) { fxService?.engineDoSeek(seconds) }
         @JvmStatic fun enginePlay() { fxService?.engineDoPlay() }
         @JvmStatic fun enginePause() { fxService?.engineDoPause() }
+        @JvmStatic fun engineQuality(q: String) { fxService?.engineDoQuality(q) }
     }
 
     inner class LocalBinder : Binder() {
@@ -357,6 +358,9 @@ class AudioService : Service() {
             }
             return
         }
+        // v4.4: chrome YT (judul atas + share/More videos/logo bawah) ditutup band native.
+        // Tombol pause/play sendiri di atas semua — satu-satunya kontrol yang tampil.
+        if (on) engineChromeShow() else engineChromeHide()
         val wv = audioWebView ?: return
         try {
             val wm = windowManager ?: return
@@ -369,7 +373,12 @@ class AudioService : Service() {
                 params.x = 0
                 params.y = 0
                 wm.updateViewLayout(wv, params)
-                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:fixed;left:0;top:0;width:100vw;height:40vh';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='position:fixed;left:0;top:0;width:100vw;height:40vh';})()")
+                // v4.4: iframe di-shift ke bawah band atas & dipendekkan — area chrome
+                // (judul YT di atas, share/logo di bawah) keluar dari area terlihat.
+                val topBand = (params.height * 0.20f).toInt()
+                val botBand = (params.height * 0.26f).toInt()
+                val midH = params.height - topBand - botBand
+                pushToAudioJs("(function(){var p=document.getElementById('p');if(p)p.style.cssText='position:fixed;left:0;top:${topBand}px;width:100vw;height:${midH}px';var f=p&&p.querySelector('iframe');if(f)f.style.cssText='position:fixed;left:0;top:${-topBand}px;width:100vw;height:${params.height}px';})()")
             } else {
                 params.width = 200
                 params.height = 200
@@ -386,8 +395,108 @@ class AudioService : Service() {
     fun engineDoSeek(seconds: Double) {
         pushToAudioJs("window.player && player.seekTo(${seconds}, true)")
     }
-    fun engineDoPlay() { enginePlaying = true; pushToAudioJs("window.player && player.playVideo()") }
-    fun engineDoPause() { enginePlaying = false; pushToAudioJs("window.player && player.pauseVideo()") }
+    // v4.5: resolusi eksplisit di mode video — reload dgn suggestedQuality (cara
+    // paling andal; setPlaybackQuality saja sering diabaikan YT embed terbaru).
+    @Volatile var engineQuality: String = ""
+    fun engineDoQuality(q: String) {
+        val allowed = setOf("highres", "hd1080", "hd720", "large", "medium", "small", "tiny", "auto")
+        engineQuality = if (q in allowed) q else ""
+        val vid = lastEngineVideoId
+        val qj = engineQuality
+        if (vid.isNotBlank() && qj.isNotEmpty()) {
+            pushToAudioJs("(function(){try{var t=window.player&&player.getCurrentTime()||0;window.player.loadVideoById({videoId:'$vid',startSeconds:t,suggestedQuality:'$qj'});}catch(e){}})()")
+        }
+    }
+    @Volatile var lastEngineVideoId: String = ""
+    fun engineDoPlay() { enginePlaying = true; pushToAudioJs("window.player && player.playVideo()"); updateEnginePlayBtn() }
+    fun engineDoPause() { enginePlaying = false; pushToAudioJs("window.player && player.pauseVideo()"); updateEnginePlayBtn() }
+
+    // ---- v4.4: chrome cover + tombol pause/play (satu-satunya kontrol video) ----
+    private var chromeTop: android.view.View? = null
+    private var chromeBottom: android.view.View? = null
+    private var enginePlayBtn: android.widget.TextView? = null
+
+    private fun overlayType() = if (Build.VERSION.SDK_INT >= 26)
+        android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+    else
+        @Suppress("DEPRECATION") android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+
+    private fun addOverlayView(hPx: Int, yPx: Int, touchable: Boolean, init: (android.view.View) -> Unit = {}): android.view.View {
+        val wm = windowManager ?: throw IllegalStateException("no wm")
+        val v = android.view.View(this)
+        v.setBackgroundColor(0xFF0A0A0A.toInt())
+        val p = android.view.WindowManager.LayoutParams(
+            android.view.WindowManager.LayoutParams.MATCH_PARENT,
+            hPx, overlayType(),
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                or (if (touchable) 0 else android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE),
+            PixelFormat.TRANSLUCENT
+        )
+        p.x = 0; p.y = yPx
+        init(v)
+        wm.addView(v, p)
+        return v
+    }
+
+    private fun engineChromeShow() {
+        val dm = resources.displayMetrics
+        val videoH = (dm.heightPixels * 0.40f).toInt()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                if (chromeTop == null) {
+                    chromeTop = addOverlayView((videoH * 0.20f).toInt(), 0, false)
+                    chromeBottom = addOverlayView((videoH * 0.26f).toInt(), videoH - (videoH * 0.26f).toInt(), false)
+                    // tombol pause/play di tengah — satu-satunya kontrol
+                    val wm = windowManager ?: return@post
+                    val btn = android.widget.TextView(this)
+                    btn.text = "❚❚"
+                    btn.textSize = 22f
+                    btn.setTextColor(0xFFFFFFFF.toInt())
+                    btn.gravity = android.view.Gravity.CENTER
+                    btn.setBackgroundResource(android.R.drawable.dialog_frame)
+                    btn.setBackgroundColor(0x66000000)
+                    val p = android.view.WindowManager.LayoutParams(
+                        (64 * resources.displayMetrics.density).toInt(),
+                        (64 * resources.displayMetrics.density).toInt(),
+                        overlayType(),
+                        android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                        PixelFormat.TRANSLUCENT
+                    )
+                    p.gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                    p.x = (dm.widthPixels - (64 * resources.displayMetrics.density).toInt()) / 2
+                    p.y = (videoH / 2) - (32 * resources.displayMetrics.density).toInt()
+                    btn.setOnClickListener {
+                        if (enginePlaying) engineDoPause() else engineDoPlay()
+                    }
+                    enginePlayBtn = btn
+                    wm.addView(btn, p)
+                } else {
+                    chromeTop?.visibility = android.view.View.VISIBLE
+                    chromeBottom?.visibility = android.view.View.VISIBLE
+                    enginePlayBtn?.visibility = android.view.View.VISIBLE
+                }
+                updateEnginePlayBtn()
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun engineChromeHide() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try {
+                chromeTop?.visibility = android.view.View.GONE
+                chromeBottom?.visibility = android.view.View.GONE
+                enginePlayBtn?.visibility = android.view.View.GONE
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun updateEnginePlayBtn() {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            enginePlayBtn?.text = if (enginePlaying) "❚❚" else "▶"
+        }
+    }
 
     private fun attachOverlay(wv: WebView) {
         if (!android.provider.Settings.canDrawOverlays(this)) return
@@ -454,6 +563,11 @@ class AudioService : Service() {
         wakeLock = null
         try {
             if (overlayAttached) {
+                // v4.4: chrome views dibersihkan juga
+                try { chromeTop?.let { windowManager?.removeView(it) } } catch (_: Exception) {}
+                try { chromeBottom?.let { windowManager?.removeView(it) } } catch (_: Exception) {}
+                try { enginePlayBtn?.let { windowManager?.removeView(it) } } catch (_: Exception) {}
+                chromeTop = null; chromeBottom = null; enginePlayBtn = null
                 audioWebView?.let { windowManager?.removeView(it) }
                 overlayAttached = false
             }

@@ -30,14 +30,11 @@ object StreamResolver {
     // NewPipe Downloader init (one-time)
     @Volatile private var newpipeReady = false
 
-    // v3.7 circuit breaker: NewPipeExtractor v0.26.5 MATI total (YT blok innertube→HTML,
-    // tidak ada rilis fix). Tanpa ini tiap play bayar pajak 3x retry gagal (3-9s) sebelum
-    // loader.to. Sekali mati → semua play langsung loader.to; sukses NewPipe = nyalain lagi.
-    @Volatile private var newpipeDead = false
-
-    // videoId -> resolved url, expire ~5.5h (YT signed URL valid ~6h)
+    // videoId -> (url, expireAtMillis). Expire ABSOLUT — URL loader.to berumur pendek,
+    // tidak boleh ikut TTL 5.5h milik URL NewPipe (signed ~6h).
     private val cache = ConcurrentHashMap<String, Pair<String, Long>>()
     private const val CACHE_MS = 5L * 60 * 60 * 1000
+    private const val LOADER_TTL_MS = 10L * 60 * 1000
     private const val MAX_ENTRIES = 250
 
     // persisted cache survives app restarts → tracks played before start instantly (~<1s)
@@ -50,12 +47,13 @@ object StreamResolver {
         try {
             val raw = prefs?.getString("data", null) ?: return
             val obj = JSONObject(raw)
+            val now = System.currentTimeMillis()
             val it = obj.keys()
             while (it.hasNext()) {
                 val id = it.next()
                 val arr = obj.optJSONArray(id) ?: continue
-                val url = arr.optString(0); val ts = arr.optLong(1)
-                if (url.isNotBlank() && ts > 0 && cache.size < MAX_ENTRIES) cache[id] = url to ts
+                val url = arr.optString(0); val exp = arr.optLong(1)
+                if (url.isNotBlank() && exp > now && cache.size < MAX_ENTRIES) cache[id] = url to exp
             }
         } catch (_: Exception) {}
     }
@@ -64,7 +62,7 @@ object StreamResolver {
         try {
             val obj = JSONObject()
             for ((id, v) in cache) {
-                if (v.first.isBlank()) continue
+                if (v.first.isBlank() || v.second <= System.currentTimeMillis()) continue
                 obj.put(id, org.json.JSONArray().put(v.first).put(v.second))
             }
             prefs?.edit()?.putString("data", obj.toString())?.apply()
@@ -78,8 +76,8 @@ object StreamResolver {
             NewPipe.init(object : Downloader() {
                 override fun execute(request: Request): Response {
                     val conn = URL(request.url()).openConnection() as HttpURLConnection
-                    conn.connectTimeout = 10_000
-                    conn.readTimeout = 15_000
+                    conn.connectTimeout = 5_000
+                    conn.readTimeout = 8_000
                     conn.requestMethod = request.httpMethod()
                     request.headers().forEach { (k, vs) -> vs.forEach { conn.setRequestProperty(k, it) } }
                     request.dataToSend()?.let { conn.doOutput = true; conn.outputStream.use { o -> o.write(it) } }
@@ -134,17 +132,14 @@ object StreamResolver {
             val key = "${if (muxedOnly) "m" else "v"}$videoId@$resolution"
             val now = System.currentTimeMillis()
             val hit = cache[key]
-            if (hit != null && now - hit.second < CACHE_MS) return@withContext VideoPair(hit.first, null)
+            if (hit != null && now < hit.second) return@withContext VideoPair(hit.first, null)
             var fresh: VideoPair? = null
             var last: Exception? = null
-            if (!newpipeDead) {
-                repeat(3) {
-                    try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
-                }
-                if (fresh == null) newpipeDead = true // v3.7
+            repeat(3) {
+                try { fresh = viaNewPipeVideo(videoId, resolution); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(300) }
             }
             val f = fresh ?: throw (last ?: IllegalStateException("video resolve failed"))
-            cache[key] = f.video to now
+            cache[key] = f.video to (now + CACHE_MS)
             persist()
             f
         }
@@ -190,37 +185,49 @@ object StreamResolver {
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             val hit = cache[videoId]
-            val url = if (hit != null && now - hit.second < CACHE_MS) hit.first else {
-                // fast retry: cold NewPipe can flake (signature fetch); retry 3x quickly.
-                // v3.4: NewPipe v0.26.5 mati total (YouTube blok innertube) → setelah 3x gagal,
-                // coba loader.to native fallback (5-10s) sebelum nyerah ke JS.
-                var fresh: String? = null
-                var last: Exception? = null
-                if (!newpipeDead) {
-                    repeat(3) {
-                        try { fresh = viaNewPipe(videoId); return@repeat } catch (e: Exception) { last = e; kotlinx.coroutines.delay(250) }
-                    }
-                    if (fresh == null) newpipeDead = true // v3.7: circuit breaker buka
-                }
-                if (fresh == null) {
-                    try { fresh = viaLoader(videoId); last = null } catch (e: Exception) { last = e }
-                }
-                // v3.7: half-open — sesekali cek NewPipe balik hidup (probe murah, biar
-                // begitu YT/NPE fix, path cepat nyala lagi sendiri)
-                if (newpipeDead) {
-                    try { viaNewPipe(videoId).let { probed -> if (probed.isNotBlank()) { newpipeDead = false; cache[videoId] = probed to now; persist() } } } catch (_: Exception) {}
-                }
-                val f = fresh ?: throw (last ?: IllegalStateException("resolve failed"))
-                cache[videoId] = f to now
-                if (cache.size > MAX_ENTRIES) {
-                    // evict oldest (drop up to 50)
-                    cache.entries.sortedBy { it.value.second }.take(50).forEach { cache.remove(it.key) }
-                }
-                persist()
-                f
+            if (hit != null && now < hit.second) {
+                return@withContext StreamInfo(hit.first, preferredTitle.ifBlank { videoId }, preferredArtist, 0L)
             }
-            StreamInfo(url, preferredTitle.ifBlank { videoId }, preferredArtist, 0L)
+            // v4.6: SEQUENTIAL — loader.to dulu (path terbukti, 5-10s, tanpa racun PO-token),
+            // NewPipe cuma fallback kalau loader gagal. Race v3.7 tetap membiarkan NewPipe
+            // "berebut" dan menambah delay/hang di sebagian device.
+            var fresh: String? = null
+            var last: Exception? = null
+            try { fresh = viaLoader(videoId) } catch (e: Exception) { last = e }
+            if (fresh == null) {
+                try { fresh = viaNewPipe(videoId) } catch (e: Exception) { last = e }
+            }
+            val f = fresh ?: throw (last ?: IllegalStateException("resolve failed"))
+            val ttl = if (f.contains("googlevideo.com")) CACHE_MS else LOADER_TTL_MS
+            cache[videoId] = f to (System.currentTimeMillis() + ttl)
+            if (cache.size > MAX_ENTRIES) {
+                // evict oldest (drop up to 50)
+                cache.entries.sortedBy { it.value.second }.take(50).forEach { cache.remove(it.key) }
+            }
+            persist()
+            StreamInfo(f, preferredTitle.ifBlank { videoId }, preferredArtist, 0L)
         }
+
+    /** v4.6: panaskan URL lagu berikutnya di latar — next/autoplay instan.
+        v4.7: kalau cache lokal miss → GET Range 0-1 ke /api/stream.m4a =
+        server sekaligus resolve & cache; client cuma tarik 2 byte. */
+    fun prewarm(videoId: String) {
+        if (videoId.isBlank()) return
+        val now = System.currentTimeMillis()
+        val hit = cache[videoId]
+        if (hit != null && now < hit.second) return
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val conn = URL("https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId&wait=1").openConnection() as HttpURLConnection
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 5_000
+                conn.readTimeout = 55_000
+                conn.requestMethod = "GET"
+                conn.responseCode // 302 = server cache warm; 202 = job jalan (worker lanjut)
+                conn.disconnect()
+            } catch (_: Exception) {}
+        }
+    }
 
     // v3.1: playback error → URL di-cache kemungkinan dead (403/signature expired) —
     // evict supaya retry resolve fresh, bukan nyangkut URL busuk sampe 5.5 jam.
@@ -229,14 +236,10 @@ object StreamResolver {
         if (cache.remove(videoId) != null) persist()
     }
 
-    // background pre-warm: fill cache for upcoming queue items so clicking next is instant
-    fun prewarm(videoId: String) {
-        if (videoId.isBlank()) return
+    /** v4.7: URL fresh dari cache lokal (tanpa resolve) atau null — dipakai play() langsung. */
+    fun cachedUrl(videoId: String): String? {
         val now = System.currentTimeMillis()
         val hit = cache[videoId]
-        if (hit != null && now - hit.second < CACHE_MS) return
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            try { resolve(videoId) } catch (_: Exception) {}
-        }
+        return if (hit != null && now < hit.second && hit.first.isNotBlank()) hit.first else null
     }
 }

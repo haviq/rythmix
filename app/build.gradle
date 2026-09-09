@@ -11,8 +11,8 @@ android {
         applicationId "com.haviq.richmusic"
         minSdk 24
         targetSdk 36
-        versionCode 69
-        versionName "4.0"
+        versionCode 70
+        versionName "4.8"
     }
     lint {
         checkReleaseBuilds false
@@ -30,11 +30,11 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '21'
+        jvmTarget = '17'
     }
 }
 
@@ -43,7 +43,10 @@ repositories {
 }
 
 dependencies {
-implementation "com.github.TeamNewPipe:NewPipeExtractor:v0.26.5"
+// v0.26.5 is blocked by YouTube's new PO Token requirements.
+// Updating to the latest stable Extractor to fix broken music playback.
+// NOTE: Extractor development shifted away from tags, we use a specific commit hash
+implementation "com.github.TeamNewPipe:NewPipeExtractor:13a655fe"
 implementation "com.google.android.gms:play-services-ads:23.6.0"
 implementation "androidx.core:core-ktx:1.15.0"
 implementation "androidx.appcompat:appcompat:1.7.1"

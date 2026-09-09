@@ -15,6 +15,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.webkit.JavascriptInterface
+import java.net.HttpURLConnection
+import java.net.URL
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -43,6 +45,8 @@ class MainActivity : AppCompatActivity() {
     private var playerView: androidx.media3.ui.PlayerView? = null
     private lateinit var jsBridge: JSBridge
     private var videoMode = false
+    // v4.5: resolusi video pilihan (0 = auto terbaik); di-persist biar lintas sesi
+    private var videoResolution = 0
     private var adView: com.google.android.gms.ads.AdView? = null
 
     private val serviceConnection = object : ServiceConnection {
@@ -79,13 +83,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         webViewContainer = findViewById(R.id.webview_container)
 
-        // AdMob banner (test unit — swap in real unit ID before release)
-        com.google.android.gms.ads.MobileAds.initialize(this) {}
+        // v4.6: AdMob lazy — MobileAds.init blocking main thread saat cold start;
+        // tunda 2.5s, iklan tetap muncul beberapa detik kemudian.
         adView = findViewById(R.id.ad_banner)
-        adView?.loadAd(com.google.android.gms.ads.AdRequest.Builder().build())
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            try { com.google.android.gms.ads.MobileAds.initialize(this) {} } catch (_: Exception) {}
+            try { adView?.loadAd(com.google.android.gms.ads.AdRequest.Builder().build()) } catch (_: Exception) {}
+        }, 2500)
 
         ensureNotificationPermission()
         StreamResolver.init(applicationContext)
+        // v4.5: restore resolusi video pilihan
+        try { videoResolution = getSharedPreferences("rm_prefs", 0).getInt("video_res", 0) } catch (_: Exception) {}
 
         // RECORD_AUDIO is a runtime permission — required for android.media.audiofx.Visualizer
         if (Build.VERSION.SDK_INT >= 23 &&
@@ -387,77 +396,83 @@ class MainActivity : AppCompatActivity() {
 
         @JavascriptInterface
         fun play(videoId: String, title: String, artist: String, startSeconds: Double) {
-            // v3.9: Reset playingVideoId seketika agar tidak nyangkut ke lagu lama
-            playingVideoId = null
-            try {
-                AudioService.player?.stop()
-                AudioService.player?.clearMediaItems()
-            } catch (_: Exception) {}
-            // v3.0: resolving disetel SINKRON di sini (bukan dlm coroutine Main) — JS manggil
-            // resume() nyaris bersamaan dgn play(); kalau nunggu coroutine, guard kelewat
-            // → replay item lama ("ganti musik tetap lagu pertama").
+
+            // v4.7: SUDUT BARU — ExoPlayer langsung disuruh mainkan URL /api/stream.m4a
+            // (server yang resolve, 302 ke file final) ATAU URL cache lokal kalau fresh.
+            // Tidak ada resolve di path play → TIDAK ADA race/antrean → lagu salah
+            // ketumpuk jadi mustahil (URL mengandung videoId yang diminta).
+
             playRequested = false
             resolving = true
-            // v3.2: set identitas sinkron — prepare() cue lama bisa gagal & meninggalkan
-            // currentMediaItem=null; resume() butuh lastVideoId lagu BARU, bukan lama.
+            // v4.0: reset playingVideoId seketika — jangan nyangkut ke lagu lama
+            playingVideoId = null
             lastVideoId = videoId
             tickVideoId = videoId
             lastTitle = title; lastArtist = artist
             AudioService.notifTitle = title; AudioService.notifArtist = artist
             AudioService.playGen++
             AudioService.mediaGen = AudioService.playGen
-            
-            // SYNCHRONOUSLY stop & clear media items ON UI THREAD before launching coroutine.
-            // Ini MENCEGAH lagu lama ketumpuk / bocor dimainin sementara coroutine telat jalan.
-            AudioService.player?.stop()
-            AudioService.player?.clearMediaItems()
 
-            scope.launch {
-                lastVideoId = videoId
-                lastTitle = title; lastArtist = artist
-                MainActivity.trackErrorCandidate(videoId)
-                resolving = true
-                val targetGen = AudioService.playGen
-                try {
-                    val info = StreamResolver.resolve(videoId, title, artist)
-                    val p = AudioService.player ?: run { resolving = false; return@launch }
-                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
-                    p.setMediaItem(
-                        androidx.media3.common.MediaItem.Builder()
-                            .setUri(Uri.parse(info.url))
-                            .setMediaMetadata(
-                                androidx.media3.common.MediaMetadata.Builder()
-                                    .setTitle(info.title)
-                                    .setArtist(info.artist)
-                                    .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
-                                    .build()
-                            )
-                            .build(),
-                        (startSeconds * 1000).toLong()
-                    )
-                    p.prepare()
-                    p.play()
-                    playingVideoId = videoId // v3.3: item benar2 dimuat sekarang
-                    AudioService.mediaGen = targetGen
-                    // v3.6.2: tick reset paksa — pastikan UI lompat ke 0:00 bareng lagu baru
-                    pushToJs("window.__rmNativeUpdate && window.__rmNativeUpdate(1, ${(startSeconds * 1000).toLong() / 1000}, ${p.duration / 1000})")
-                    if (targetGen == AudioService.playGen) {
-                        resolving = false
-                        engineVideoActive = false
+            try {
+                AudioService.player?.stop()
+                AudioService.player?.clearMediaItems()
+            } catch (_: Exception) {}
+
+
+            val targetGen = AudioService.playGen
+            val localUrl = StreamResolver.cachedUrl(videoId)
+            val mediaUrl = localUrl ?: "https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId"
+            val p = AudioService.player ?: run { resolving = false; return }
+            // v4.7b: resolve via endpoint polling di sini — 202=tunggu, 302=URL final.
+            // Dilakukan DI LUUIR ExoPlayer supaya media item = file final (bukan proxy).
+            val effectiveUrl = if (localUrl != null) localUrl else {
+                var final: String? = null
+                var attempt = 0
+                while (final == null && attempt < 14) {
+                    try {
+                        val conn = URL("https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId&wait=1").openConnection() as HttpURLConnection
+                        conn.instanceFollowRedirects = false
+                        conn.connectTimeout = 5_000
+                        conn.readTimeout = 55_000
+                        val code = conn.responseCode
+                        if (code in 301..399) {
+                            final = conn.getHeaderField("Location")
+                            conn.disconnect(); break
+                        }
+                        conn.disconnect()
+                        Thread.sleep(3000)
+                    } catch (e: Exception) {
+                        try { Thread.sleep(2500) } catch (_: Exception) {}
+
                     }
-                    // v2.4: re-attach EQ/viz tiap lagu — stop()+setMediaItem bisa
-                    // re-init sink dgn session id baru; object lama = no efek.
-                    AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
-                } catch (e: Exception) {
-                    if (AudioService.playGen != targetGen) return@launch // v3.5: Abaikan catch jika request stale
-                    resolving = false
-                    // v3.2: JANGAN route ke engine WebView — mkPlayer iframe gak jalan di
-                    // background & engineVideoActive nyangkut = semua tap berikutnya mati.
-                    // Evict URL mungkin-busuk + lempar error ke JS (retry path audio: onError→startCurrent).
-                    try { StreamResolver.evict(videoId) } catch (_: Exception) {}
-                    AudioService.onError?.invoke("resolve failed: ${e.message ?: "unknown"}")
+                    attempt++
                 }
+                final ?: "https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId&wait=1"
             }
+            p.setMediaItem(
+                androidx.media3.common.MediaItem.Builder()
+                    .setUri(Uri.parse(effectiveUrl))
+                    .setMediaMetadata(
+                        androidx.media3.common.MediaMetadata.Builder()
+                            .setTitle(title.ifBlank { videoId })
+                            .setArtist(artist)
+                            .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
+                            .build()
+                    )
+                    .build(),
+                (startSeconds * 1000).toLong()
+            )
+            p.prepare()
+            p.play()
+            playingVideoId = videoId
+            AudioService.mediaGen = targetGen
+            if (targetGen == AudioService.playGen) {
+                resolving = false
+                engineVideoActive = false
+            }
+            AudioService.player?.let { AudioService.attachAudioFx(it.audioSessionId) }
+            // panaskan cache lokal utk lagu ini juga (next session = URL direct instan)
+            StreamResolver.prewarm(videoId)
         }
 
         @JavascriptInterface
@@ -511,51 +526,37 @@ class MainActivity : AppCompatActivity() {
             // (dulu: cue selalu audio → resume nyalain audio padahal mode video)
             if (videoMode) { prepareVideo(videoId, title, artist, startSeconds); return }
             playRequested = false
-            resolving = true // v3.0: sync guard — race dgn resume() sebelum coroutine Main jalan
-            // v3.2: identitas sinkron — cue lama gagal (resolve error) → currentMediaItem=null;
-            // resume() re-run play path pakai lastVideoId. Harus lagu BARU, bukan sisa lama.
+            resolving = true
             lastVideoId = videoId
             tickVideoId = videoId
             lastTitle = title; lastArtist = artist
-            scope.launch {
-                AudioService.player?.stop()
-                AudioService.player?.clearMediaItems()
-                playRequested = false
-                resolving = true // v2.9: cued resolve in-flight → resume() nunggu prepare selesai
-                AudioService.playGen++
-                val targetGen = AudioService.playGen
-                try {
-                    val info = StreamResolver.resolve(videoId, title, artist)
-                    val p = AudioService.player ?: run { resolving = false; return@launch }
-                    if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
-                    lastVideoId = videoId
-                    lastTitle = title; lastArtist = artist
-                    p.setMediaItem(
-                        androidx.media3.common.MediaItem.Builder()
-                            .setUri(Uri.parse(info.url))
-                            .setMediaMetadata(
-                                androidx.media3.common.MediaMetadata.Builder()
-                                    .setTitle(info.title)
-                                    .setArtist(info.artist)
-                                    .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
-                                    .build()
-                            )
-                            .build(),
-                        (startSeconds * 1000).toLong()
+            // v4.7: instant cue — media item langsung dipasang (stream proxy / cache lokal).
+            // Tidak ada resolve coroutine → resume() instan, tanpa state race.
+            AudioService.player?.stop()
+            AudioService.player?.clearMediaItems()
+            playRequested = false
+            val targetGen = ++AudioService.playGen
+            AudioService.mediaGen = targetGen
+            val localUrl = StreamResolver.cachedUrl(videoId)
+            val effectiveUrl = localUrl ?: "https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId&wait=1"
+            val p = AudioService.player ?: run { resolving = false; return }
+            p.setMediaItem(
+                androidx.media3.common.MediaItem.Builder()
+                    .setUri(Uri.parse(effectiveUrl))
+                    .setMediaMetadata(
+                        androidx.media3.common.MediaMetadata.Builder()
+                            .setTitle(title.ifBlank { videoId })
+                            .setArtist(artist)
+                            .setArtworkUri(Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
+                            .build()
                     )
-                    p.prepare()
-                    AudioService.mediaGen = targetGen
-                    playingVideoId = videoId // v3.3: cued item benar2 dimuat
-                    if (targetGen == AudioService.playGen) resolving = false // v2.9
-                    if (playRequested) { playRequested = false; p.play() }
-                } catch (e: Exception) {
-                    if (targetGen != AudioService.playGen) return@launch // v3.5
-                    resolving = false
-                    playRequested = false
-                    // v3.2: video resolve gagal → fallback AUDIO path (play()), bukan engine WebView
-                    play(videoId, title, artist, startSeconds)
-                }
-            }
+                    .build(),
+                (startSeconds * 1000).toLong()
+            )
+            p.prepare()
+            playingVideoId = videoId
+            resolving = false
+            if (playRequested) { playRequested = false; p.play() }
         }
 
         @JavascriptInterface fun seekTo(seconds: Double) {
@@ -584,7 +585,7 @@ class MainActivity : AppCompatActivity() {
                 AudioService.playGen++
                 val targetGen = AudioService.playGen
                 try {
-                    val pair = StreamResolver.resolveVideo(videoId, 0)
+                    val pair = StreamResolver.resolveVideo(videoId, videoResolution)
                     val p = AudioService.player ?: run { resolving = false; return@launch }
                     if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     lastVideoId = videoId; lastTitle = title; lastArtist = artist
@@ -761,7 +762,7 @@ class MainActivity : AppCompatActivity() {
                 resolving = true
                 val targetGen = AudioService.playGen
                 try {
-                    val pair = StreamResolver.resolveVideo(videoId, 0)
+                    val pair = StreamResolver.resolveVideo(videoId, videoResolution)
                     val p = AudioService.player ?: run { resolving = false; return@launch }
                     if (targetGen != AudioService.playGen) run { resolving = false; return@launch }
                     val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
@@ -816,6 +817,45 @@ class MainActivity : AppCompatActivity() {
         }
 
         /** Download muxed MP4 at chosen resolution (0 = best) straight to Movies/Rythmix. */
+
+        // v4.5: resolusi video eksplisit (0=auto terbaik, 1080/720/480/360). Tersimpan,
+        // langsung reload video yang sedang diputar tanpa kehilangan posisi.
+        @JavascriptInterface fun setVideoResolution(height: Int) {
+            videoResolution = height
+            try { getSharedPreferences("rm_prefs", 0).edit().putInt("video_res", height).apply() } catch (_: Exception) {}
+            val vid = playingVideoId
+            val title = lastTitle; val artist = lastArtist
+            val pos = AudioService.player?.currentPosition?.div(1000.0) ?: 0.0
+            if (videoMode && !vid.isNullOrBlank()) {
+                scope.launch {
+                    try {
+                        resolving = true
+                        val pair = StreamResolver.resolveVideo(videoId = vid, resolution = height)
+                        // evict entri lama dulu — resolveVideo cache by key, height beda = key beda, aman
+                        val p = AudioService.player ?: run { resolving = false; return@launch }
+                        val vItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video))
+                        if (pair.audio != null) {
+                            val aItem = androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.audio))
+                            val vSrc = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+                                androidx.media3.datasource.DefaultDataSource.Factory(this@MainActivity)
+                            ).createMediaSource(vItem)
+                            val aSrc = androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+                                androidx.media3.datasource.DefaultDataSource.Factory(this@MainActivity)
+                            ).createMediaSource(aItem)
+                            p.setMediaSource(androidx.media3.exoplayer.source.MergingMediaSource(vSrc, aSrc), (pos * 1000).toLong())
+                        } else {
+                            p.setMediaItem(androidx.media3.common.MediaItem.fromUri(Uri.parse(pair.video)), (pos * 1000).toLong())
+                        }
+                        p.prepare(); p.play()
+                        resolving = false
+                    } catch (e: Exception) {
+                        resolving = false
+                        AudioService.onError?.invoke("Resolusi ${height}p gak tersedia")
+                    }
+                }
+            }
+        }
+        @JavascriptInterface fun getVideoResolution(): Int = videoResolution
         @JavascriptInterface fun downloadVideo(videoId: String, title: String, resolution: Int) {
             scope.launch {
                 try {
