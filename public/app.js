@@ -221,7 +221,7 @@ function updateQualityButton() {
   if (!btn) return;
   btn.classList.toggle('on', !!Player.hq);
   const span = btn.querySelector('span');
-  if (span) span.textContent = Player.hq ? 'Max' : 'Quality';
+  if (span) span.textContent = Player.videoMode ? 'Resolusi' : (Player.hq ? 'Max' : 'Quality');
   btn.title = Player.hq
     ? 'YouTube max quality — tap for YouTube Music audio'
     : 'YouTube Music audio — tap for YouTube max quality';
@@ -229,6 +229,33 @@ function updateQualityButton() {
   syncNpMore();
 }
 function toggleQuality() {
+  // v4.5: mode video ? menu resolusi eksplisit; mode audio ? toggle HQ lama
+  if (Player.videoMode && window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.setVideoResolution) {
+    const cur = (() => { try { return window.RichMusicBridge.getVideoResolution() || 0; } catch { return 0; } })();
+    const opts = [['0', 'Auto (terbaik)'], ['1080', '1080p'], ['720', '720p'], ['480', '480p'], ['360', '360p']];
+    let menu = $('#qres-menu');
+    if (menu) { menu.remove(); return; }
+    menu = document.createElement('div');
+    menu.id = 'qres-menu';
+    menu.style.cssText = 'position:fixed;z-index:120;background:var(--card,#1c1c22);border:1px solid var(--border);border-radius:10px;padding:6px;box-shadow:0 12px 40px rgba(0,0,0,.5);min-width:150px';
+    menu.innerHTML = opts.map(([v, label]) => `<button data-res="${v}" style="display:flex;width:100%;align-items:center;gap:8px;padding:9px 12px;border:0;background:none;color:${String(cur) === v ? 'var(--accent-bright)' : 'var(--text)'};font-weight:${String(cur) === v ? 800 : 500};font-size:13.5px;cursor:pointer;border-radius:6px">${String(cur) === v ? '?' : '&nbsp;&nbsp;'} ${label}</button>`).join('');
+    document.body.appendChild(menu);
+    const b = $('#np-quality').getBoundingClientRect();
+    menu.style.right = Math.max(8, window.innerWidth - b.right) + 'px';
+    menu.style.top = (b.bottom + 6) + 'px';
+    menu.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-res]');
+      if (!btn) return;
+      const h = Number(btn.dataset.res) || 0;
+      try { window.RichMusicBridge.setVideoResolution(h); } catch { }
+      toast(h ? `Resolusi ${h}p` : 'Resolusi: Auto');
+      menu.remove();
+    });
+    setTimeout(() => document.addEventListener('click', function closer(ev) {
+      if (!ev.target.closest('#qres-menu')) { menu.remove(); document.removeEventListener('click', closer); }
+    }), 0);
+    return;
+  }
   Player.hq = !Player.hq;
   store.set('yt_hq', Player.hq);
   updateQualityButton();
@@ -904,6 +931,7 @@ function renderModeButtons() {
   if (!a || !v) return;
   a.classList.toggle('active', !Player.videoMode);
   v.classList.toggle('active', !!Player.videoMode);
+  updateQualityButton(); // v4.5: label Quality/Resolusi ikut mode
 }
 function initModeButtons() {
   const a = $('#np-mode-audio'), v = $('#np-mode-video');
