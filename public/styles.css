@@ -4797,3 +4797,37 @@ html[data-theme="light"] .modal-card .pl-form-input {
   .carousel { grid-auto-columns: 132px; }
   .quick-card img, .quick-card .art-ph { width: 46px; height: 46px; border-radius: 50%; }
 }
+/* ---------- v4.6 loading state (resolve in-flight) ---------- */
+body.rm-loading #mini-play .ic { opacity: 0.25; }
+body.rm-loading #mini-play { position: relative; }
+body.rm-loading #mini-play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  animation: rm-spin 0.8s linear infinite;
+}
+@keyframes rm-spin { to { transform: rotate(360deg); } }
+body.rm-loading #np-play .ic { opacity: 0.25; }
+body.rm-loading #np-play { position: relative; }
+body.rm-loading #np-play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  animation: rm-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.rm-loading #mini-play::after,
+  body.rm-loading #np-play::after { animation-duration: 2s; }
+}

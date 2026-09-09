@@ -325,6 +325,17 @@ window.onYouTubeIframeAPIReady = () => {
           } catch { }
           if (vidOk) {
             Player._switching = false;
+            // v4.6: loading state selesai — judul & tombol kembali normal
+            document.body.classList.remove('rm-loading');
+            window.dispatchEvent(new Event('rm-play-start'));
+            // v4.6: panaskan 2 lagu berikutnya di queue — next/autoplay instan (native)
+            try {
+              if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prewarm && Player.queue) {
+                Player.queue.slice(Player.index + 1, Player.index + 3).forEach((q) => {
+                  if (q && q.videoId) { try { window.RichMusicBridge.prewarm(q.videoId); } catch { } }
+                });
+              }
+            } catch { }
             setTimeout(maybeRetryLyrics, 600);
             applyPlaybackQuality();
             setTimeout(applyPlaybackQuality, 500);
@@ -665,6 +676,17 @@ function startCurrent() {
       // â†’ playUrl restart lagu dari 0 saat resolve pertama selesai.
       window.__rmPlaying = false;
       clearTimeout(window.__rmWatchdog);
+      // v4.6: loading state — judul miniplayer + NP jadi "Memuat…" sampai PLAYING,
+      // play button spinner. Persepsi delay turun drastis.
+      document.body.classList.add('rm-loading');
+      const pendingTitle = displayTitle(s.title) || s.title || '';
+      try { $('#mini-title').textContent = 'Memuat ' + pendingTitle + '…'; } catch (e) { }
+      const onDoneLoading = () => {
+        document.body.classList.remove('rm-loading');
+        try { renderNowPlaying(); } catch (e) { }
+        window.removeEventListener('rm-play-start', onDoneLoading);
+      };
+      window.addEventListener('rm-play-start', onDoneLoading);
       window.__rmWatchdog = setTimeout(() => {
         // Hanya skip kalau udah PLAYING (lagu baru udah jalan) atau resolve masih valid (busy).
         if (!window.__rmPlaying && !window.__rmBusy() && window.__nativeMode && window.RichMusicBridge) {
