@@ -4,11 +4,11 @@
   ],
   "headers": [
     {
-      "source": "/app.js",
+      "source": "/app(.min)?.js",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }]
     },
     {
-      "source": "/styles.css",
+      "source": "/styles(.min)?.css",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }]
     },
     {
