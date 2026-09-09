@@ -4587,7 +4587,6 @@ html[data-theme="light"] .modal-card .pl-form-input {
   align-items: flex-end;
   padding-bottom: 22px;
   margin-bottom: 26px;
-  border-bottom: 1px solid var(--border);
 }
 
 /* — judul section: kicker kecil + garis — */
@@ -4600,7 +4599,6 @@ html[data-theme="light"] .modal-card .pl-form-input {
   color: var(--muted);
   padding-bottom: 10px;
   margin-bottom: 18px;
-  border-bottom: 1px solid var(--border);
 }
 
 .shelf { margin-bottom: 44px; }
@@ -4655,23 +4653,27 @@ html[data-theme="light"] .modal-card .pl-form-input {
   background: linear-gradient(90deg, transparent, var(--main-bg));
 }
 
-/* — recently played: baris rata dengan hairline, bukan kotak — */
+/* — v4.1: recently played = tile pintas (Spotify-style) — tanpa garis,
+   pemisah dari latar lewat permukaan kartu, hover mengangkat bukan garis — */
 .quick-grid {
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0 28px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px 14px;
   margin-bottom: 40px;
 }
 
 .quick-card {
-  background: none;
-  border-radius: 0;
-  padding: 10px 0;
+  background: color-mix(in srgb, var(--card) 55%, transparent);
+  border-radius: 10px;
+  padding: 8px 14px 8px 8px;
   gap: 14px;
-  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.quick-card:hover { background: none; }
-.quick-card:hover .qc-t { text-decoration: underline; text-underline-offset: 3px; }
+.quick-card:hover {
+  background: var(--card-hover);
+  transform: translateY(-1px);
+}
+.quick-card:hover .qc-t { text-decoration: none; }
 
 .quick-card img,
 .quick-card .art-ph {
@@ -4752,7 +4754,7 @@ html[data-theme="light"] .modal-card .pl-form-input {
   .hello-row { padding-bottom: 16px; margin-bottom: 20px; }
   .shelf { margin-bottom: 34px; }
   .shelf-title { margin-bottom: 14px; }
-  .quick-grid { grid-template-columns: 1fr; gap: 0; }
+  .quick-grid { grid-template-columns: 1fr; gap: 8px; }
   .card, .card .art { width: 148px; }
   .card .art { height: 148px; }
   .carousel { grid-auto-columns: 148px; gap: 14px; }
