@@ -4679,7 +4679,7 @@ html[data-theme="light"] .modal-card .pl-form-input {
 .quick-card .art-ph {
   width: 52px;
   height: 52px;
-  border-radius: 4px;
+  border-radius: 50%; /* v4.1: lingkaran — aksen editorial di baris pintas */
 }
 
 .quick-card .qc-t {
@@ -4772,5 +4772,5 @@ html[data-theme="light"] .modal-card .pl-form-input {
   .card, .card .art { width: 132px; }
   .card .art { height: 132px; }
   .carousel { grid-auto-columns: 132px; }
-  .quick-card img, .quick-card .art-ph { width: 46px; height: 46px; }
+  .quick-card img, .quick-card .art-ph { width: 46px; height: 46px; border-radius: 50%; }
 }
