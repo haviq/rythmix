@@ -1234,6 +1234,10 @@ let lastLyricIdx = -1;
 function updateLyricHighlight(cur) {
   const L = Player.lyrics;
   if (!L.lines.length) return;
+  // v4.2: lirik tak terlihat (NP tutup / tab bukan lyrics) ? jangan sentuh DOM tiap 100ms
+  // (scrollIntoView = forced reflow; Lighthouse "Forced reflow")
+  const lyricsVisible = $('#np-lyrics') && $('#np-lyrics').classList.contains('active');
+  if (!lyricsVisible && !Player.floatOn) { $('#np-lyric-preview').textContent = ''; return; }
   let idx = -1;
   for (let i = 0; i < L.lines.length; i++) { if (cur >= lrcToAudio(L.lines[i].t) - 0.2) idx = i; else break; }
   if (idx === lastLyricIdx) return;
@@ -1244,7 +1248,7 @@ function updateLyricHighlight(cur) {
     el.classList.toggle('past', i < idx);
   });
   const active = c.querySelector('.lyric-line.active');
-  if (active && $('#np-lyrics').classList.contains('active')) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (active && lyricsVisible) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
   const line = idx >= 0 ? L.lines[idx].text : '';
   $('#np-lyric-preview').textContent = line;
   syncFloatLyric(line);
@@ -1690,14 +1694,21 @@ function safeCover(src) {
 function thumbURL(src, big) {
   let u = safeCover(src);
   if (!u) return '';
-  u = u.replace('/hqdefault.jpg', big ? '/hqdefault.jpg' : '/mqdefault.jpg');
+  if (/\/vi\/[A-Za-z0-9_-]+\//.test(u) && !big) u = u.replace(/\/(hqdefault|mqdefault|default)\.jpg/, '/mqdefault.jpg');
+  return '/api/thumb?url=' + encodeURIComponent(u);
+}
+function thumbSmall(src) {
+  let u = safeCover(src);
+  if (!u) return '';
+  u = u.replace(/\/(hqdefault|mqdefault|default)\.jpg/, '/default.jpg');
   return '/api/thumb?url=' + encodeURIComponent(u);
 }
 function coverHTML(src, kind = '') {
   const u = safeCover(src);
   if (!u) return `<div class="art-ph${kind ? ' art-ph-' + kind : ''}">${icon('i-note')}</div>`;
-  const big = kind === '' || kind === 'np';
-  return `<img loading="lazy" decoding="async" fetchpriority="low" src="${esc(thumbURL(u, big))}" alt="" width="80" height="80">`;
+  const small = kind === 'track' || kind === 'lib' || kind === 'quick';
+  const url = small ? thumbSmall(u) : thumbURL(u, kind === '' || kind === 'np');
+  return `<img loading="lazy" decoding="async" fetchpriority="low" src="${esc(url)}" alt="" width="80" height="80">`;
 }
 function cardHTML(it) {
   const cls = it.type === 'artist' ? 'card artist' : 'card';
@@ -2173,6 +2184,20 @@ async function loadMixForYou() {
   if (!seeds.length) return;
   const slot = $('#mix-slot');
   if (!slot) return;
+  // v4.2: tunda sampai slot dekat viewport — tanpa layout shift (slot kosong
+  // diberi min-height) & gambar mix tidak bersaing dengan konten atas.
+  if (!slot._mixWatch) {
+    slot._mixWatch = 1;
+    slot.style.minHeight = '180px';
+    await new Promise((resolve) => {
+      if (!('IntersectionObserver' in window)) return resolve();
+      const obs = new IntersectionObserver((en) => {
+        if (en.some((x) => x.isIntersecting)) { obs.disconnect(); resolve(); }
+      }, { rootMargin: '600px 0px' });
+      obs.observe(slot);
+      setTimeout(resolve, 6000);
+    });
+  }
   try {
     const seed = seeds[Math.floor(Math.random() * Math.min(5, seeds.length))];
     const d = await api(`/api/next?videoId=${encodeURIComponent(seed.videoId)}`);
