@@ -3408,13 +3408,9 @@ function toggleVideoMode() {
     store.set('vid_mode', Player.videoMode);
     document.body.classList.toggle('show-video', Player.videoMode);
     try { moveWebVideo(Player.videoMode); } catch { }
-    if (Player.videoMode) {
-      // pause posisi? iframe tetap jalan — cukup tampilkan; pastikan lagu ter-load
-      if (Player.current && Player.current.videoId && Player.yt && Player.ready) {
-        try { Player.yt.loadVideoById(Player.current.videoId, (window.__rmState && window.__rmState.time) || 0); } catch { }
-      }
-      toast('Mode video: ON');
-    } else toast('Mode audio: ON');
+    // v3.7d: video TIDAK di-reload — iframe sudah memutar lagu ini di holder;
+    // toggle ON/OFF murni overlay posisi → audio tak pernah putus.
+    toast(Player.videoMode ? 'Mode video: ON' : 'Mode audio: ON');
     renderMoreMenu && renderMoreMenu();
     return;
   }
@@ -3441,13 +3437,33 @@ function toggleVideoMode() {
 // v2.7: native — #np-video jadi placeholder kotak thumbnail; surface ExoPlayer
 // dirender TEPAT di situ (rect dikirim ke bridge). Web — iframe dipindah ke slot.
 function syncVideoRect() {
-  if (!window.__nativeMode || !window.RichMusicBridge || !window.RichMusicBridge.setVideoRect) return;
   const el = document.getElementById('np-video');
+  const holder = document.getElementById('yt-holder');
   if (!el) return;
   const npOpen = document.body.classList.contains('np-open');
   const playerTab = $('#np-player') && $('#np-player').classList.contains('active');
   const r = el.getBoundingClientRect();
-  if (Player.videoMode && npOpen && playerTab && r.width > 10 && r.height > 10) {
+  const on = Player.videoMode && npOpen && playerTab && r.width > 10 && r.height > 10;
+  if (!window.__nativeMode) {
+    // v3.7d: web — #yt-holder diletakkan tepat di atas kotak #np-video.
+    // Iframe TIDAK dipindah parent (reparent = reload = playback mati).
+    if (!holder) return;
+    if (on) {
+      holder.classList.add('video-pos');
+      holder.style.left = Math.round(r.left) + 'px';
+      holder.style.top = Math.round(r.top) + 'px';
+      holder.style.width = Math.round(r.width) + 'px';
+      holder.style.height = Math.round(r.height) + 'px';
+      holder.style.zIndex = 62;
+    } else {
+      holder.classList.remove('video-pos');
+      holder.style.left = ''; holder.style.top = '';
+      holder.style.width = ''; holder.style.height = '';
+      holder.style.zIndex = '';
+    }
+    return;
+  }
+  if (on) {
     window.RichMusicBridge.setVideoRect(Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height));
   } else {
     window.RichMusicBridge.setVideoRect(0, 0, 0, 0); // NP minim / tab lain → video hilang, audio jalan
@@ -3456,17 +3472,10 @@ function syncVideoRect() {
 // v2.6: pindahkan iframe YT antara #yt-holder (audio tersembunyi) dan
 // #np-video-slot (video terlihat, ikut tab player & minimize). Balikin posisi
 // tiap toggle biar playback tidak terganggu.
-function moveWebVideo(on) {
-  const slot = document.getElementById('np-video-slot');
-  const holder = document.getElementById('yt-holder');
-  const frame = (Player.yt && Player.yt.getIframe && Player.yt.getIframe()) || document.getElementById('yt-player');
-  if (!slot || !holder || !frame) return;
-  if (on) {
-    if (frame.parentElement !== slot) slot.appendChild(frame);
-  } else {
-    if (frame.parentElement !== holder) holder.insertBefore(frame, holder.firstChild);
-  }
-}
+// v3.7d: web — iframe TIDAK dipindah parent lagi (reparent = iframe reload =
+// playback mati saat toggle video↔audio). Holder di-overlay via syncVideoRect.
+// Fungsi disimpan demi kompatibilitas pemanggil lama; jadi no-op.
+function moveWebVideo() { requestAnimationFrame(syncVideoRect); }
 // native → JS sync (back button exits video, or resolve failed → audio fallback)
 window.__rmVideoToggle = function (on) {
   Player.videoMode = !!on;
@@ -3783,12 +3792,27 @@ function bindFloatWidget(rootDoc) {
 function enableDrag(el) {
   if (el._fwDrag) return;
   el._fwDrag = true;
+  // v3.7d: clamp posisi ke viewport — posisi tersimpan dari window beda ukuran
+  // jangan bikin widget setengah tenggelam di bawah layar (screenshot "kepotong")
+  const clampPos = () => {
+    const r = el.getBoundingClientRect();
+    const w = r.width || el.offsetWidth || 400, h = r.height || 90;
+    const x = Math.max(8, Math.min(window.innerWidth - w - 8, parseFloat(el.style.left) || r.left));
+    const y = Math.max(8, Math.min(window.innerHeight - h - 8, parseFloat(el.style.top) || r.top));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+  };
+  el._fwClamp = clampPos;
   const saved = store.get('fw_pos', null);
   if (saved && Number.isFinite(saved.l) && Number.isFinite(saved.t)) {
     el.style.left = saved.l + 'px';
     el.style.top = saved.t + 'px';
     el.style.right = 'auto';
     el.style.bottom = 'auto';
+    requestAnimationFrame(clampPos);
+    window.addEventListener('resize', clampPos);
   } else {
     el.style.right = '16px';
     el.style.bottom = '24px';
@@ -4048,6 +4072,7 @@ async function openFloatWidget() {
   } else {
     el.classList.remove('hidden');
     enableDrag(el);
+    try { el._fwClamp && el._fwClamp(); } catch { }
     bindFloatWidget(document);
     toast('Floating widget — drag to move');
   }

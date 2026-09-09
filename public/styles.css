@@ -3524,8 +3524,33 @@ body.show-video #np-player.active #np-art {
 }
 
 body.show-video #yt-holder {
-  /* v2.7: holder audio tersembunyi tetap; video tampil di #np-video (thumbnail) */
-  display: none;
+  /* v3.7d: holder TIDAK di-display:none lagi — web video-mode memakai holder ini
+     sebagai permukaan video (di-posisi-kan ke kotak #np-video via .video-pos).
+     Tanpa video-pos = perilaku lama (opacity 0.001, z-index -1, diem di pojok). */
+  display: block;
+}
+
+/* v3.7d: web video — holder dipindahkan KE ATAS kotak #np-video (position fixed
+   diset dari JS syncVideoRect). Iframe 16:9 di-crop tengah (mirip np-video-crop).
+   DULU: iframe di-reparent ke #np-video-slot — reparent = reload = playback mati
+   saat toggle video↔audio. */
+#yt-holder.video-pos {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 62;
+  border-radius: 14px;
+}
+
+#yt-holder.video-pos iframe,
+#yt-holder.video-pos #yt-player {
+  width: auto !important;
+  height: 100% !important;
+  aspect-ratio: 16 / 9;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  border: 0;
 }
 
 .skeleton {
