@@ -87,8 +87,8 @@ const Library = {
   isFav(id) { return this.favorites.some((s) => s.videoId === id); },
   toggleFav(song) {
     let f = this.favorites;
-    if (this.isFav(song.videoId)) { f = f.filter((s) => s.videoId !== song.videoId); toast('Removed from favorites'); }
-    else { f.unshift(song); toast('Added to favorites'); }
+    if (this.isFav(song.videoId)) { f = f.filter((s) => s.videoId !== song.videoId); toast('Dihapus dari favorit'); }
+    else { f.unshift(song); toast('Ditambahkan ke favorit'); }
     store.set('fav', f);
     updateLikeButtons();
     renderSidebarLibrary();
@@ -139,8 +139,8 @@ const Library = {
   isSaved(browseId) { return this.saved.some((s) => s.browseId === browseId); },
   toggleSaved(item) {
     let sv = this.saved;
-    if (this.isSaved(item.browseId)) { sv = sv.filter((s) => s.browseId !== item.browseId); toast('Removed from library'); }
-    else { sv.unshift(item); toast('Saved to library'); }
+    if (this.isSaved(item.browseId)) { sv = sv.filter((s) => s.browseId !== item.browseId); toast('Dihapus dari library'); }
+    else { sv.unshift(item); toast('Disimpan ke library'); }
     store.set('sav', sv);
     renderSidebarLibrary();
   },
@@ -324,7 +324,7 @@ window.onYouTubeIframeAPIReady = () => {
           setTimeout(() => { if (Player.current) startCurrent(); }, 700);
         } else {
           Player._playErrors = 0;
-          toast('Track unavailable, skipping…');
+          toast('Lagu tidak tersedia, lanjut ke berikutnya…');
           setTimeout(() => nextTrack(true), 800);
         }
       },
@@ -444,7 +444,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       var s = window.Player && window.Player.current;
       if (!s || s.videoId !== videoId) return;
 
-      toast('Memutar via mode web darurat...');
+      toast('Memutar via mode web darurat�');
 
       // Matikan ExoPlayer sepenuhnya supaya tidak bentrok
       try { window.RichMusicBridge.stop(); } catch (e) { }
@@ -495,18 +495,18 @@ function queueSong(song, playNext = false) {
   const s = { ...normalizeSong(song), _user: true };
   if (!Player.current) { playSong(s); return; }
   if (!playNext && alreadyQueued(song.videoId)) {
-    toast('Already in your queue');
+    toast('Sudah ada di antrean');
     renderQueue();
     return;
   }
   if (playNext) {
     Player.queue.splice(Player.index + 1, 0, s);
-    toast('Playing next');
+    toast('Diputar berikutnya');
   } else {
     let i = Player.index + 1;
     while (i < Player.queue.length && Player.queue[i]._user) i++;
     Player.queue.splice(i, 0, s);
-    toast('Added to your queue');
+    toast('Ditambahkan ke antrean');
   }
   renderQueue();
 }
@@ -519,7 +519,7 @@ function removeQueued(i) {
 function clearUserQueue() {
   Player.queue = Player.queue.filter((q, i) => i <= Player.index || !q._user);
   renderQueue();
-  toast('Queue cleared');
+  toast('Antrean dibersihkan');
 }
 function slimSong(s) {
   if (!s || !s.videoId) return null;
@@ -790,7 +790,7 @@ window.__rmNotifCmd = function (cmd) {
   try {
     if (cmd === 'next') nextTrack(false);
     else if (cmd === 'prev') prevTrack();
-    else if (cmd === 'loop') { Player.repeat = ((Player.repeat || 0) + 1) % 3; toast('Repeat: ' + ['off', 'all', 'one'][Player.repeat]); }
+    else if (cmd === 'loop') { Player.repeat = ((Player.repeat || 0) + 1) % 3; toast('Repeat: ' + ['off', 'semua', 'satu'][Player.repeat]); }
     else if (cmd === 'shuffle') { Player.shuffle = !Player.shuffle; toast('Shuffle ' + (Player.shuffle ? 'on' : 'off')); }
   } catch (e) { }
 };
@@ -1442,7 +1442,7 @@ async function loadRelated(force = false) {
   const el = $('#related-list');
   if (!el) return;
   const song = Player.current;
-  if (!song) { el.innerHTML = '<div class="loading-note">Play a song first</div>'; return; }
+  if (!song) { el.innerHTML = '<div class="loading-note">Putar lagu dulu</div>'; return; }
   if (Player._relatedLoaded && !force) return;
   Player._relatedLoaded = true;
   el.innerHTML = '<div class="loading-note">Loading…</div>';
@@ -1534,7 +1534,7 @@ async function downloadSong(song, format) {
     pickVideoResolution((res) => window.RichMusicBridge.downloadVideo(song.videoId, song.title || 'video', res));
     return;
   }
-  if (activeDownloads.has(song.videoId + format)) { toast('Already downloading this song…'); return; }
+  if (activeDownloads.has(song.videoId + format)) { toast('Lagu ini sedang didownload…'); return; }
   activeDownloads.add(song.videoId + format);
   toast(`Preparing "${song.title}" (${format.toUpperCase()})…`);
   try {
@@ -1568,12 +1568,12 @@ async function downloadSong(song, format) {
     } catch {
       clickDownload(url, name);
     }
-    toast('Download started');
+    toast('Download dimulai');
     const hist = store.get('dl_hist', []);
     hist.unshift({ videoId: song.videoId, title: song.title, artist: song.artist, thumb: song.thumb || '', ts: Date.now() });
     store.set('dl_hist', hist.slice(0, 50));
   } catch (e) {
-    toast('Download failed — try again later');
+    toast('Download gagal — try again later');
   } finally {
     activeDownloads.delete(song.videoId + format);
   }
@@ -2084,23 +2084,7 @@ async function viewHome(view) {
   const pls = Library.playlists.filter((p) => p.tracks && p.tracks.length);
   const saved = Library.saved.slice(0, 12);
   const dateLine = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
-  // v3.8: hero studio panel — statistik dari data beneran (riwayat play), tanpa label palsu
-  const days = new Set(Library.history.map((s) => s.at ? new Date(s.at).toDateString() : '')).size;
-  const totalPlays = Library.history.length + (Library.stats && Library.stats.plays || 0);
-  const hero = `<section class="studio-hero">
-    <div class="sh-left">
-      <div class="sh-badge"><span class="sh-dot"></span>${esc(greet).toUpperCase()} · RYTHMIX ACTIVE</div>
-      <h1 class="page-title sh-title">${greet}</h1>
-      <div class="sh-sub">Koleksi & chart siap diputar. Fokus dengerin, sisanya biar Rythmix.</div>
-    </div>
-    <div class="sh-right">
-      <div class="sh-stat"><div class="sh-k">TOTAL PLAY</div><div class="sh-v">${totalPlays}</div></div>
-      <div class="sh-stat"><div class="sh-k">FAVORIT</div><div class="sh-v">${Library.favorites.length}</div></div>
-      <div class="sh-stat"><div class="sh-k">PLAYLIST</div><div class="sh-v">${Library.playlists.length}</div></div>
-      <div class="sh-stat"><div class="sh-k">AKTIF</div><div class="sh-v">${days}<span class="sh-u">hari</span></div></div>
-    </div>
-  </section>`;
-  let html = hero;
+  let html = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">${greet}</h1></div>${helloMetaHTML()}</div>`;
   if (hist.length) {
     html += `<div class="shelf-title">Recently played</div><div class="quick-grid">${hist.slice(0, 8).map((s) => quickCardHTML({ ...s, type: 'song', subtitle: s.artist })).join('')}</div>`;
   }
@@ -2581,7 +2565,7 @@ async function importFromLink(url) {
   }
   if (r.kind === 'artist') { go(`#/artist/${r.id}`); return; }
   const d = await api(`/api/browse?id=${encodeURIComponent(r.id)}`);
-  if (!d.tracks.length) { toast('No tracks found (playlist may be private)'); return; }
+  if (!d.tracks.length) { toast('Tidak ada lagu (playlist mungkin privat)'); return; }
   const name = (d.header && d.header.title) || 'Imported playlist';
   const pl = Library.createPlaylist(name);
   d.tracks.forEach((t) => Library.addToPlaylist(pl.id, songFromItem(t)));
@@ -2618,7 +2602,7 @@ function backupLibrary() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
-  toast('Backup downloaded');
+  toast('Backup terunduh');
 }
 function restoreLibrary() {
   const inp = document.createElement('input');
@@ -2663,12 +2647,12 @@ function restoreLibrary() {
           }
         }
         renderSidebarLibrary();
-        toast('Library restored');
+        toast('Library dipulihkan');
         closeModal();
         route();
       } catch (e) { toast('Restore failed: ' + e.message); }
     };
-    reader.onerror = () => toast('Restore failed: could not read file');
+    reader.onerror = () => toast('Restore gagal: file tidak terbaca');
     reader.readAsText(f);
   };
   inp.click();
@@ -2952,7 +2936,7 @@ async function shareSong(song) {
       const ta = document.createElement('textarea');
       ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }
-    toast('Link copied');
+    toast('Link disalin');
   } catch {
     toast(url);
   }
@@ -3007,7 +2991,7 @@ function openSleepTimer() {
             if (window.__nativeMode && window.RichMusicBridge) { window.RichMusicBridge.setVolume(1); window.RichMusicBridge.pause(); }
             else if (Player.yt) { try { Player.yt.setVolume(100); } catch (e) { } Player.yt.pauseVideo(); }
             syncSleepLabel();
-            toast('Sleep timer: paused');
+            toast('Sleep timer: jeda');
           } else {
             const vol = Math.round(k * 100);
             if (window.__nativeMode && window.RichMusicBridge) window.RichMusicBridge.setVolume(vol);
@@ -3017,7 +3001,7 @@ function openSleepTimer() {
         syncSleepLabel();
       }, m * 60000);
       toast(`Sleeping in ${m} min`);
-    } else toast('Sleep timer cancelled');
+    } else toast('Sleep timer dibatalkan');
     syncSleepLabel();
     closeModal();
   };
@@ -3129,7 +3113,7 @@ function openRenamePlaylist(pid) {
     if (!name) { input.classList.add('shake'); setTimeout(() => input.classList.remove('shake'), 400); return; }
     Library.renamePlaylist(pid, name);
     closeModal();
-    toast('Playlist renamed');
+    toast('Playlist diubah nama');
     route();
   });
   $('#rn-cancel').addEventListener('click', closeModal);
@@ -3156,7 +3140,7 @@ function openDeletePlaylist(pid) {
   $('#dlpl-go').addEventListener('click', () => {
     Library.deletePlaylist(pid);
     closeModal();
-    toast('Playlist deleted');
+    toast('Playlist dihapus');
     go('#/library');
   });
   modal.classList.remove('hidden');
@@ -3198,7 +3182,7 @@ function openAddToPlaylist(song) {
     });
     $$('.modal-row', body).forEach((r) => r.addEventListener('click', () => {
       Library.addToPlaylist(r.dataset.id, song);
-      toast('Added to playlist');
+      toast('Ditambahkan ke playlist');
       modal.classList.add('hidden');
     }));
   };
@@ -3225,7 +3209,7 @@ if ($('#mini-close')) {
     closeNowPlaying();
     document.body.classList.remove('has-player', 'paused');
     document.title = 'Rythmix Music';
-    toast('Player closed');
+    toast('Player ditutup');
   });
 }
 /* open Now Playing from art / title / expand button (Spotify behaviour) */
@@ -3259,7 +3243,7 @@ $('#mini-repeat').addEventListener('click', (e) => {
   $('#mini-repeat').classList.toggle('on', on); $('#mini-repeat').innerHTML = ic;
   $('#np-repeat').classList.toggle('on', on); $('#np-repeat').innerHTML = ic;
   persistQueue();
-  toast(['Repeat off', 'Repeat all', 'Repeat one'][Player.repeat]);
+  toast(['Repeat off', 'Repeat semua', 'Repeat satu'][Player.repeat]);
 });
 /* volume on the bar */
 $('#mini-volume').addEventListener('input', (e) => {
@@ -3315,7 +3299,7 @@ $('#np-repeat').addEventListener('click', function () {
   this.classList.toggle('on', on); this.innerHTML = ic;
   $('#mini-repeat').classList.toggle('on', on); $('#mini-repeat').innerHTML = ic;
   persistQueue();
-  toast(['Repeat off', 'Repeat all', 'Repeat one'][Player.repeat]);
+  toast(['Repeat off', 'Repeat semua', 'Repeat satu'][Player.repeat]);
 });
 
 
@@ -4113,7 +4097,7 @@ async function startSystemPip() {
 }
 
 async function openFloatWidget() {
-  if (!Player.current) { toast('Play a song first'); return; }
+  if (!Player.current) { toast('Putar lagu dulu'); return; }
   Player.floatOn = true;
   closeNowPlaying();
   document.body.classList.add('float-mode');

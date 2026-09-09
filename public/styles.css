@@ -817,7 +817,7 @@ html[data-theme="light"] .tb-btn {
 }
 
 #view.view-enter {
-  animation: fadeUp 0.38s ease;
+  /* v3.9: tanpa fade tiap navigasi — instan terasa native */
 }
 
 .page-title {
@@ -834,99 +834,6 @@ html[data-theme="light"] .tb-btn {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 22px;
-}
-
-/* ---------- studio hero (v3.8) ---------- */
-.studio-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  padding: 30px 32px;
-  margin-bottom: 26px;
-  border-radius: var(--radius-lg);
-  background:
-    radial-gradient(120% 180% at 8% 0%, hsl(var(--tint), 55%, 22%) 0%, transparent 55%),
-    linear-gradient(160deg, var(--card) 0%, var(--main-bg) 100%);
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
-  box-shadow: var(--shadow);
-}
-.studio-hero .sh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--accent-bright);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  padding: 6px 12px;
-  border-radius: 999px;
-  margin-bottom: 14px;
-}
-.studio-hero .sh-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent-bright);
-  box-shadow: 0 0 10px var(--accent-bright);
-}
-.studio-hero .sh-title {
-  font-size: clamp(30px, 4vw, 44px);
-  letter-spacing: -0.045em;
-  margin: 0 0 8px;
-}
-.studio-hero .sh-sub {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 500;
-  max-width: 460px;
-}
-.studio-hero .sh-right {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(86px, 1fr));
-  gap: 10px;
-}
-.studio-hero .sh-stat {
-  background: color-mix(in srgb, var(--card-hover) 70%, transparent);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  min-width: 86px;
-}
-.studio-hero .sh-k {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--subdued);
-  margin-bottom: 4px;
-}
-.studio-hero .sh-v {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-.studio-hero .sh-u {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  margin-left: 3px;
-}
-@media (max-width: 900px) {
-  .studio-hero { padding: 22px; }
-  .studio-hero .sh-right { grid-template-columns: repeat(2, 1fr); width: 100%; }
-}
-
-.hello-row .page-title {
-  margin-bottom: 0;
-}
-
-.greeting {
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 4px;
-  font-weight: 600;
-  text-transform: capitalize;
 }
 
 /* chips â€” iOS segmented */
@@ -1319,9 +1226,7 @@ html[data-theme="light"] .art-ph {
   transition: transform 0.45s ease;
 }
 
-.card:hover .art img {
-  transform: scale(1.03);
-}
+/* hover: tak zoom — cukup play-ov muncul (v3.9) */
 
 .card .art .play-ov {
   position: absolute;
@@ -1740,7 +1645,6 @@ html[data-theme="light"] .detail-head {
 
 .pill-btn:hover {
   border-color: var(--text);
-  transform: scale(1.04);
 }
 
 .pill-btn.primary {
@@ -1753,7 +1657,6 @@ html[data-theme="light"] .detail-head {
 
 .pill-btn.primary:hover {
   background: #3be477;
-  transform: scale(1.05);
 }
 
 .pill-btn:disabled,
@@ -1843,7 +1746,6 @@ html[data-theme="light"] .detail-head {
 }
 
 .mood-card:hover {
-  transform: scale(1.04);
   filter: brightness(1.08);
 }
 
@@ -1921,10 +1823,6 @@ body.np-open.has-player #nowplaying {
   background: var(--elevated);
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
-}
-
-#mini-art:hover {
-  transform: scale(1.04);
 }
 
 .mini-meta {
@@ -2031,10 +1929,8 @@ body.np-open.has-player #nowplaying {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  /* v3.8: play bulat accent â€” nyambung dgn studio hero */
-  background: linear-gradient(150deg, var(--accent-bright), var(--accent));
-  color: #0b0b0f;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--play-bg);
+  color: var(--play-fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2269,7 +2165,6 @@ html[data-theme="light"] .np-tab {
 
 .np-tab:hover {
   color: #fff;
-  transform: scale(1.04);
 }
 
 .np-tab.active {
@@ -2296,14 +2191,13 @@ html[data-theme="light"] .np-tab {
   background: var(--card-hover);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
+  transition: background 0.15s, color 0.15s;
 }
 .np-mode-btn .ic { width: 14px; height: 14px; fill: currentColor; }
-.np-mode-btn:hover { color: var(--text); transform: scale(1.03); }
+.np-mode-btn:hover { color: var(--text); }
 .np-mode-btn.active {
-  color: #0b0b0f;
-  background: linear-gradient(150deg, var(--accent-bright), var(--accent));
-  box-shadow: 0 3px 14px color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--chip-on-fg);
+  background: var(--chip-on-bg);
 }
 
 html[data-theme="light"] .np-tab.active {
@@ -3746,7 +3640,7 @@ body.show-video #yt-holder {
     z-index: 5;
     overflow: hidden;
     order: 3;
-    animation: fadeUp 0.28s ease;
+    
   }
 
   #nowplaying.hidden {
