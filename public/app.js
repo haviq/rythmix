@@ -1253,7 +1253,7 @@ function renderNowPlaying() {
   const mini = Player.current;
   const np = Player.pending || Player.current;
   if (mini) {
-    $('#mini-art').src = mini.thumbnail || '';
+    $('#mini-art').src = thumbURL(mini.thumbnail) || '';
     const mt = $('#mini-title');
     const ma = $('#mini-artist');
     const title = displayTitle(mini.title) || mini.title || '';
@@ -1265,7 +1265,7 @@ function renderNowPlaying() {
     ma.classList.toggle('linkish', !!(songArtistBrowseId(mini) || artist.trim()));
   }
   if (!np) return;
-  $('#np-art').src = safeCover(np.thumbnail) || COVER_PH;
+  $('#np-art').src = thumbURL(np.thumbnail, true) || COVER_PH;
   $('#np-title').textContent = np.title;
   const artEl = $('#np-artist');
   artEl.textContent = np.artist || np.subtitle || '';
@@ -1681,10 +1681,21 @@ function safeCover(src) {
   if (!u || u === 'undefined' || u === 'null' || u === 'about:blank') return '';
   return u;
 }
+/* v3.9: optimasi gambar (Lighthouse image-delivery/cache-lifetimes)
+   - thumbnail YT hqdefault(480px) → mqdefault(320px) utk kartu kecil (hemat ~2.5MB/halaman)
+   - semua cover di-proxy /api/thumb (satu origin, cache 30 hari immutable)
+   - width/height eksplisit → no layout shift; decoding async + fetchpriority low */
+function thumbURL(src, big) {
+  let u = safeCover(src);
+  if (!u) return '';
+  u = u.replace('/hqdefault.jpg', big ? '/hqdefault.jpg' : '/mqdefault.jpg');
+  return '/api/thumb?url=' + encodeURIComponent(u);
+}
 function coverHTML(src, kind = '') {
   const u = safeCover(src);
   if (!u) return `<div class="art-ph${kind ? ' art-ph-' + kind : ''}">${icon('i-note')}</div>`;
-  return `<img loading="lazy" src="${esc(u)}" alt="">`;
+  const big = kind === '' || kind === 'np';
+  return `<img loading="lazy" decoding="async" fetchpriority="low" src="${esc(thumbURL(u, big))}" alt="" width="80" height="80">`;
 }
 function cardHTML(it) {
   const cls = it.type === 'artist' ? 'card artist' : 'card';
@@ -1887,12 +1898,10 @@ const NAV = [
   { id: 'ytm', label: 'YT Music', icon: 'i-play', iconActive: 'i-play', hash: '#/ytm' },
 ];
 function renderNav() {
-  const html = NAV.map((n) => `<button class="nav-item" data-id="${n.id}" data-ic="${n.icon}" data-ica="${n.iconActive}" onclick="location.hash='${n.hash}'"><svg class="ic"><use href="#${n.icon}"/></svg><span>${n.label}</span></button>`).join('');
-  // desktop sidebar: YTM-style — main pages + settings/downloads
-  $('#nav-desktop').innerHTML = NAV.filter((n) => ['home', 'search', 'charts', 'downloads', 'settings', 'ytm'].includes(n.id))
-    .map((n) => `<button class="nav-item" data-id="${n.id}" data-ic="${n.icon}" data-ica="${n.iconActive}" onclick="location.hash='${n.hash}'"><svg class="ic"><use href="#${n.icon}"/></svg><span>${n.label}</span></button>`).join('');
-  $('#nav-mobile').innerHTML = NAV.filter((n) => ['home', 'search', 'charts', 'library'].includes(n.id))
-    .map((n) => `<button class="nav-item" data-id="${n.id}" data-ic="${n.icon}" data-ica="${n.iconActive}" onclick="location.hash='${n.hash}'"><svg class="ic"><use href="#${n.icon}"/></svg><span>${n.label}</span></button>`).join('');
+  // v3.9: <a href> crawlable (Lighthouse SEO/agentic) — bukan button onclick
+  const navHTML = (n) => `<a class="nav-item" data-id="${n.id}" data-ic="${n.icon}" data-ica="${n.iconActive}" href="${n.hash}"><svg class="ic"><use href="#${n.icon}"/></svg><span>${n.label}</span></a>`;
+  $('#nav-desktop').innerHTML = NAV.filter((n) => ['home', 'search', 'charts', 'downloads', 'settings', 'ytm'].includes(n.id)).map(navHTML).join('');
+  $('#nav-mobile').innerHTML = NAV.filter((n) => ['home', 'search', 'charts', 'library'].includes(n.id)).map(navHTML).join('');
   renderSidebarLibrary();
 }
 /* mobile drawer: hamburger → sidebar slide-in; close on backdrop tap or after nav */
@@ -1996,8 +2005,12 @@ const WMO_ICON = { 0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️', 45: '🌫', 48
 function helloMetaHTML() { return `<div class="hello-meta"><div class="hello-weather" id="hello-weather"></div><div class="hello-clock" id="hello-clock">--:--</div></div>`; }
 async function fetchHelloWeather() {
   const el = document.getElementById('hello-weather'); if (!el) return;
+  // v3.9: izin lokasi dulu — prompt kalau belum pernah diminta; deny → langsung skip.
   let lat = null, lon = null, place = '';
-  const pos = await new Promise((r) => navigator.geolocation ? navigator.geolocation.getCurrentPosition((p) => r(p), () => r(null), { timeout: 6000, maximumAge: 600000 }) : r(null));
+  const pos = await new Promise((r) => {
+    if (!navigator.geolocation) return r(null);
+    navigator.geolocation.getCurrentPosition((p) => r(p), () => r(null), { timeout: 6000, maximumAge: 600000 });
+  });
   if (pos) { lat = pos.coords.latitude; lon = pos.coords.longitude; }
   else { try { const g = await fetch('https://ipwho.is/').then((x) => x.json()); if (g && g.success !== false) { lat = g.latitude; lon = g.longitude; place = g.city || ''; } } catch (e) { } }
   if (lat == null) { el.textContent = ''; return; }
@@ -2012,7 +2025,13 @@ function initHelloMeta() {
   const tick = () => { const d = new Date(); const s = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); if (el && el.textContent !== s) el.textContent = s; };
   tick();
   if (!window.__helloClockInt) window.__helloClockInt = setInterval(tick, 10000);
-  if (!window.__helloWeatherFetched) { window.__helloWeatherFetched = 1; fetchHelloWeather(); }
+  // v3.9: cuaca/geolocation TIDAK auto-fetch saat load — prompt lokasi saat page load
+  // mengganggu (Lighthouse Best Practices) & fetch 3rd party menahan idle. Tunggu idle 4s.
+  if (!window.__helloWeatherFetched) {
+    const go = () => { window.__helloWeatherFetched = 1; fetchHelloWeather(); };
+    if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 6000 });
+    else setTimeout(go, 4000);
+  }
 }
 
 /* Pre-warm native resolve cache for likely-tapped tracks (home) so clicking a title

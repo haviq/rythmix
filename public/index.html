@@ -4,13 +4,19 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#000000" />
-<title>Rythmix Music</title>
+<meta name="description" content="Rythmix Music — free web music player: streaming, lirik sinkron, playlist, chart, dan visualizer. Tanpa iklan." />
+<meta property="og:title" content="Rythmix Music" />
+<meta property="og:description" content="Free web music player — streaming, synced lyrics, playlist, charts." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://rythmix-music.vercel.app/" />
+<meta property="og:image" content="https://rythmix-music.vercel.app/logo-192.png" />
+<link rel="canonical" href="https://rythmix-music.vercel.app/" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<title>Rythmix Music — Free Web Music Player</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="icon" type="image/png" sizes="192x192" href="/logo-192.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="preload" as="image" href="/logo.png" />
+<link rel="preload" as="image" href="/logo.png" fetchpriority="high" />
 <script>
 try {
   var t = JSON.parse(localStorage.getItem('smw_theme') || '"dark"');
@@ -279,8 +285,8 @@ try {
   <canvas id="pip-canvas" width="360" height="640"></canvas>
   <video id="pip-video" muted playsinline autoplay></video>
 </div>
-<script src="app.js?v=v38c"></script>
-<link rel="stylesheet" href="styles.css?v=v38c" />
+<script src="app.js?v=v39"></script>
+<link rel="stylesheet" href="styles.css?v=v39" />
 <script src="app-config.js?v=3"></script>
 </body>
 </html>

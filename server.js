@@ -1017,7 +1017,9 @@ app.get('/api/thumb', async (req, res) => {
     });
     if (!r.ok) return res.status(502).end();
     res.setHeader('Content-Type', r.headers.get('content-type') || 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    // v3.9: cache panjang — URL thumbnail YouTube mengandung signature yang tetap
+    // valid berminggu-minggu; browser & CDN tak perlu re-fetch tiap hari.
+    res.setHeader('Cache-Control', 'public, max-age=2592000, stale-while-revalidate=604800, immutable');
     res.send(Buffer.from(await r.arrayBuffer()));
   } catch {
     res.status(500).end();

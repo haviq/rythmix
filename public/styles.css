@@ -9,7 +9,7 @@
   --accent-bright: #ffd54a;
   --text: #ffffff;
   --muted: rgba(235, 235, 245, 0.6);
-  --subdued: rgba(235, 235, 245, 0.32);
+  --subdued: rgba(235, 235, 245, 0.45);
   --border: rgba(255, 255, 255, 0.14);
   --player-h: 90px;
   --navm-h: 64px;
@@ -534,6 +534,7 @@ button,
   text-align: left;
   width: 100%;
   letter-spacing: -0.01em;
+  text-decoration: none; /* v3.9: nav-item sekarang <a> crawlable */
 }
 
 .nav-item:hover {

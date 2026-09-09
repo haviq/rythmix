@@ -1,12 +1,24 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "api/index.js", "use": "@vercel/node", "config": { "maxDuration": 60 } },
-    { "src": "public/**", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/(.+\\.(css|js|png|ico|svg|json|webmanifest|jpg|jpeg|webp|otf|ttf|woff|woff2))", "dest": "/public/$1" },
-    { "src": "/(.*)", "dest": "/public/index.html" }
+  "headers": [
+    {
+      "source": "/app.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }]
+    },
+    {
+      "source": "/styles.css",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }]
+    },
+    {
+      "source": "/app-config.js",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=300" }]
+    },
+    {
+      "source": "/fonts/:path*",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+    },
+    {
+      "source": "/(logo|favicon|apple-touch-icon|favicon-32|logo-64|logo-192|icon-512).(png|jpg|svg|ico)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=2592000, immutable" }]
+    }
   ]
 }
