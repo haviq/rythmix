@@ -881,7 +881,9 @@ setInterval(() => {
   syncFloatProgress(pct);
   if (Player.floatOn) drawPipFrame(pct);
   // v2.7: ikuti layout NP (scroll/rotate/resize) — video tetap nempel kotak thumbnail
-  try { syncVideoRect(); } catch { }
+  // v3.9: guard videoMode — getBoundingClientRect tiap 100ms = forced reflow terus
+  // (Lighthouse "Forced reflow") padahal 99% waktu video mati.
+  if (Player.videoMode) { try { syncVideoRect(); } catch { } }
 }, 100);
 
 function renderPlayButtons() {
