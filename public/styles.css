@@ -3835,9 +3835,9 @@ body.show-video #yt-holder {
     position: fixed;
     top: 12px;
     left: 12px;
-    z-index: 88;
-    width: 40px;
-    height: 40px;
+    z-index: 91; /* v4.1c: di atas drawer (90) — tetap terklik saat drawer terbuka */
+    width: 48px;
+    height: 48px;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
@@ -3848,13 +3848,21 @@ body.show-video #yt-holder {
     box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
   }
 
+  /* v4.1c: garis hamburger lebih besar */
+  #drawer-btn .ic {
+    width: 26px;
+    height: 26px;
+  }
+
   #topbar {
     display: none;
   }
 
+  /* v4.1c: tombol jadi tombol tutup (tetap terlihat saat drawer terbuka) */
   body.drawer-open #drawer-btn {
-    opacity: 0;
-    pointer-events: none;
+    opacity: 1;
+    pointer-events: auto;
+    background: var(--card-hover);
   }
 
   #main {

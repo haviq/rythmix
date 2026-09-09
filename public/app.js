@@ -1906,13 +1906,21 @@ function renderNav() {
   $('#nav-mobile').innerHTML = NAV.filter((n) => ['home', 'search', 'charts', 'library'].includes(n.id)).map(navHTML).join('');
   renderSidebarLibrary();
 }
-/* mobile drawer: hamburger → sidebar slide-in; close on backdrop tap or after nav */
+/* mobile drawer: hamburger ? sidebar slide-in; tombol toggle (garis ? ?),
+   close juga via backdrop atau setelah pilih nav */
 (function () {
-  const open = () => document.body.classList.add('drawer-open');
-  const close = () => document.body.classList.remove('drawer-open');
+  const btn = () => document.querySelector('#drawer-btn use');
+  const open = () => {
+    document.body.classList.add('drawer-open');
+    const u = btn(); if (u) u.setAttribute('href', '#i-x');
+  };
+  const close = () => {
+    document.body.classList.remove('drawer-open');
+    const u = btn(); if (u) u.setAttribute('href', '#i-menu');
+  };
   document.addEventListener('click', (e) => {
     const b = e.target.closest('#drawer-btn');
-    if (b) { open(); return; }
+    if (b) { document.body.classList.contains('drawer-open') ? close() : open(); return; }
     if (e.target.closest('#drawer-bg')) { close(); return; }
     if (document.body.classList.contains('drawer-open') && e.target.closest('#sidebar .nav-item, #sidebar a, #sidebar button.lib-title')) setTimeout(close, 120);
   });
