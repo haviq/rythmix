@@ -2628,7 +2628,8 @@ body:not(.paused) .np-art-wrap {
 
 /* lyrics — always light-on-dark so album art never washes out the text */
 #np-lyrics {
-  background: linear-gradient(180deg, rgba(0, 0, 0, .15), rgba(0, 0, 0, .42));
+  /* v3.8c: satu warna dengan Now Playing — tak lagi kotak beda background */
+  background: transparent;
   border-radius: 12px;
 }
 

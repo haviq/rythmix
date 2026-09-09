@@ -289,18 +289,20 @@ window.onYouTubeIframeAPIReady = () => {
           nextTrack(true);
         }
         if (e.data === YT.PlayerState.PLAYING) {
-          Player._switching = false;
-          // v3.7: PLAYING epoch lama (lagu sebelumnya) jangan clear _switching —
-          // dulu: ENDED lagu lama → _switching=true → tick PLAYING lama telat datang
-          // → _switching=false → ENDED re-fire → nextTrack ganda = "ikut lagu pertama".
+          // v3.8c: ikon play/pause JANGAN ikut guard vid — dulu PLAYING race (video lama
+          // masih di iframe saat ganti lagu) return duluan → ikon miniplayer tak keganti.
+          let vidOk = true;
           try {
             const vid = Player.yt.getVideoData && Player.yt.getVideoData().video_id;
-            if (vid && Player.current && vid !== Player.current.videoId) return;
+            vidOk = !(vid && Player.current && vid !== Player.current.videoId);
           } catch { }
-          setTimeout(maybeRetryLyrics, 600);
-          applyPlaybackQuality();
-          setTimeout(applyPlaybackQuality, 500);
-          setTimeout(applyPlaybackQuality, 2000);
+          if (vidOk) {
+            Player._switching = false;
+            setTimeout(maybeRetryLyrics, 600);
+            applyPlaybackQuality();
+            setTimeout(applyPlaybackQuality, 500);
+            setTimeout(applyPlaybackQuality, 2000);
+          }
         }
         if (e.data === YT.PlayerState.BUFFERING) applyPlaybackQuality();
         // BUFFERING is NOT paused — treating it as paused flashes the play/pause icon
