@@ -3958,6 +3958,8 @@ function pipLyricLines() {
 function drawPipFrame() {
   const canvas = $('#pip-canvas');
   if (!canvas) return;
+  // v3.7e: pastikan font lirik siap sebelum digambar ke canvas (frame berikut otomatis kepakai)
+  try { document.fonts && document.fonts.load('800 30px "Taste Bread HD"'); } catch { }
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   const s = Player.current;
@@ -3980,7 +3982,7 @@ function drawPipFrame() {
   ctx.textBaseline = 'middle';
   if (!lines.length) {
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '700 26px Figtree, Segoe UI, sans-serif';
+    ctx.font = '700 26px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
     ctx.fillText('No lyrics', w / 2, h / 2, maxW);
     return;
   }
@@ -3997,7 +3999,7 @@ function drawPipFrame() {
   const blocks = [];
   for (let i = from; i <= to; i++) {
     const active = i === idx;
-    ctx.font = active ? '800 30px Figtree, Segoe UI, sans-serif' : '600 20px Figtree, Segoe UI, sans-serif';
+    ctx.font = b.active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
     const wrapped = wrapCanvasText(ctx, lines[i], maxW);
     const lh = active ? 38 : 28;
     blocks.push({ i, active, wrapped, lh, h: wrapped.length * lh });
@@ -4010,7 +4012,7 @@ function drawPipFrame() {
   }
   let y = h / 2 - yOff - (activeBlock.h / 2);
   for (const b of blocks) {
-    ctx.font = b.active ? '800 30px Figtree, Segoe UI, sans-serif' : '600 20px Figtree, Segoe UI, sans-serif';
+    ctx.font = b.active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
     ctx.fillStyle = b.active ? '#ffd700' : (b.i < idx ? 'rgba(255,255,255,0.40)' : 'rgba(255,255,255,0.26)');
     let ly = y + b.lh / 2;
     for (const t of b.wrapped) {
