@@ -253,10 +253,8 @@ a {
   }
 }
 
-/* konten view masuk halus */
-#view>* {
-  animation: rm-rise .28s cubic-bezier(.22, 1, .36, 1) both;
-}
+/* v4.0: entrance ditangani revealScan() (IntersectionObserver, stagger per blok).
+   Aturan lama #view>* dicabut â€” dulu semua blok animasi bersamaan saat load. */
 
 /* kartu stagger â€” max 12 item pertama biar ringan */
 .lib-grid>*:nth-child(-n+12),
@@ -4561,4 +4559,216 @@ html[data-theme="light"] .modal-card .pl-form-input {
 
 .lyric-plain {
   font-weight: 700;
+}
+/* ============================================================
+   v4.0 — EDITORIAL DARK
+   Arah baru: artwork = kartunya (kotak/pad dibuang), heading
+   pakai kicker + hairline, rail bertepi fade, player bar rata.
+   Ditaruh paling bawah agar menang atas aturan lama.
+   ============================================================ */
+
+/* — tipografi halaman — */
+#view .page-title {
+  font-size: clamp(32px, 4.4vw, 52px);
+  letter-spacing: -0.05em;
+  line-height: 1.02;
+  margin-bottom: 4px;
+}
+
+#view .greeting {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--subdued);
+}
+
+.hello-row {
+  align-items: flex-end;
+  padding-bottom: 22px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* — judul section: kicker kecil + garis — */
+.shelf-title,
+#view > .shelf-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shelf { margin-bottom: 44px; }
+
+/* — kartu: tanpa kotak, artwork yang bicara — */
+.card {
+  width: 200px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  transition: none;
+}
+
+.card:hover { background: none; }
+
+.card .art {
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  box-shadow: none;
+  transition: filter 0.2s ease;
+}
+
+.card:hover .art { filter: brightness(1.06); }
+
+.card .t {
+  margin-top: 12px;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.card:hover .t { text-decoration: underline; text-underline-offset: 3px; }
+
+.card .s {
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.carousel { grid-auto-columns: 200px; gap: 22px; }
+
+/* rail: tepi kanan memudar, bukan terpotong tajam */
+.carousel-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 64px;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--main-bg));
+}
+
+/* — recently played: baris rata dengan hairline, bukan kotak — */
+.quick-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0 28px;
+  margin-bottom: 40px;
+}
+
+.quick-card {
+  background: none;
+  border-radius: 0;
+  padding: 10px 0;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-card:hover { background: none; }
+.quick-card:hover .qc-t { text-decoration: underline; text-underline-offset: 3px; }
+
+.quick-card img,
+.quick-card .art-ph {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+}
+
+.quick-card .qc-t {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* — sidebar rata: tanpa kartu bertumpuk — */
+.side-box {
+  background: none;
+  border-radius: 0;
+  padding: 14px 4px;
+}
+
+.side-box + .side-box { border-top: 1px solid var(--border); }
+
+.logo span {
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+/* — player bar: rata, hairline atas, tanpa glass — */
+#miniplayer {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* — topbar menyatu — */
+#topbar { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+.tb-search {
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+/* ---------- fade-in bertahap saat masuk viewport ---------- */
+.rv {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.rv-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.5s cubic-bezier(.22,.61,.36,1) var(--rv-d, 0ms),
+              transform 0.5s cubic-bezier(.22,.61,.36,1) var(--rv-d, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; }
+  .rv-in { transition: none; }
+}
+
+/* ---------- responsif ---------- */
+@media (max-width: 1100px) {
+  .card, .card .art { width: 172px; }
+  .card .art { height: 172px; }
+  .carousel { grid-auto-columns: 172px; gap: 18px; }
+}
+
+@media (max-width: 860px) {
+  .hello-row { padding-bottom: 16px; margin-bottom: 20px; }
+  .shelf { margin-bottom: 34px; }
+  .shelf-title { margin-bottom: 14px; }
+  .quick-grid { grid-template-columns: 1fr; gap: 0; }
+  .card, .card .art { width: 148px; }
+  .card .art { height: 148px; }
+  .carousel { grid-auto-columns: 148px; gap: 14px; }
+  .carousel-wrap::after { width: 36px; }
+  #miniplayer {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 640px) {
+  .card, .card .art { width: 132px; }
+  .card .art { height: 132px; }
+  .carousel { grid-auto-columns: 132px; }
+  .quick-card img, .quick-card .art-ph { width: 46px; height: 46px; }
 }

@@ -857,7 +857,7 @@ setInterval(() => {
       Player.sbSkipped = Player.sbSegments
         .filter((g) => g.end <= seg.end)
         .reduce((a, g) => a + (g.end - g.start), 0);
-      toast(`⏩ Skipped ${seg.category.replace('_', ' ')} (SponsorBlock)`);
+      toast(`❩ Skipped ${seg.category.replace('_', ' ')} (SponsorBlock)`);
     }
   }
   const dur = Player.yt.getDuration() || 0;
@@ -1994,6 +1994,43 @@ async function route() {
     bindEmptyCtas(view);
   }
   view.classList.add('view-enter');
+  revealScan(view);
+}
+
+/* v4.0: fade-in bertahap � blok konten muncul saat masuk viewport, stagger 45ms
+   per baris. IntersectionObserver, bukan animasi CSS ke semua elemen: yang di
+   luar layar tak dianimasikan sama sekali (hemat, tak bikin scroll janky). */
+let revealObs = null;
+function revealScan(root) {
+  if (!root) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const targets = $$('.hello-row, .shelf, .shelf-title, .quick-grid, .track-list, .lib-grid, .detail-head, .empty-block, .stats-cards, .chip-row', root);
+  if (!targets.length) return;
+  // fallback: browser tanpa IntersectionObserver (atau reduced-motion) ? tampil langsung
+  if (reduce || !('IntersectionObserver' in window)) { targets.forEach((el) => el.classList.add('rv-in')); return; }
+  if (!revealObs) {
+    revealObs = new IntersectionObserver((entries) => {
+      let i = 0;
+      for (const en of entries) {
+        if (!en.isIntersecting) continue;
+        en.target.style.setProperty('--rv-d', (i++ * 45) + 'ms');
+        en.target.classList.add('rv-in');
+        revealObs.unobserve(en.target);
+      }
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.04 });
+  }
+  targets.forEach((el) => {
+    if (el._rv) return;
+    el._rv = 1;
+    el.classList.add('rv');
+    revealObs.observe(el);
+  });
+  // jaring pengaman: kalau observer tak pernah trigger (parent sempat hidden,
+  // tab background, dll) konten tetap muncul setelah 1.2s � jangan sampai blank.
+  clearTimeout(window.__rvSafety);
+  window.__rvSafety = setTimeout(() => {
+    targets.forEach((el) => el.classList.add('rv-in'));
+  }, 1200);
 }
 window.addEventListener('hashchange', route);
 
@@ -2003,7 +2040,7 @@ const skeletonHTML = `<div class="page-title">&nbsp;</div>` + Array(3).fill(`
 
 /* ---- Home ---- */
 /* ---------- Rythmix iOS: live clock + weather in header (Home & Charts) ---------- */
-const WMO_ICON = { 0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️', 45: '🌫', 48: '🌫', 51: '🌦', 53: '🌦', 55: '🌦', 56: '🌧', 57: '🌧', 61: '🌧', 63: '🌧', 65: '🌧', 66: '🌧', 67: '🌧', 71: '🌨', 73: '🌨', 75: '🌨', 77: '🌨', 80: '🌦', 81: '🌧', 82: '🌧', 85: '🌨', 86: '🌨', 95: '⛈', 96: '⛈', 99: '⛈' };
+const WMO_ICON = { 0: '☀︝', 1: '🌤', 2: '⛅', 3: '☝︝', 45: '🌫', 48: '🌫', 51: '🌦', 53: '🌦', 55: '🌦', 56: '🌧', 57: '🌧', 61: '🌧', 63: '🌧', 65: '🌧', 66: '🌧', 67: '🌧', 71: '🌨', 73: '🌨', 75: '🌨', 77: '🌨', 80: '🌦', 81: '🌧', 82: '🌧', 85: '🌨', 86: '🌨', 95: '⛈', 96: '⛈', 99: '⛈' };
 function helloMetaHTML() { return `<div class="hello-meta"><div class="hello-weather" id="hello-weather"></div><div class="hello-clock" id="hello-clock">--:--</div></div>`; }
 async function fetchHelloWeather() {
   const el = document.getElementById('hello-weather'); if (!el) return;
@@ -2117,7 +2154,8 @@ async function viewHome(view) {
   // once "Mix for you" fills in late — so any visible track resolves before tap.
   const gather = () => warmResolve(collectVisibleVideoIds(view));
   gather();
-  loadMixForYou().finally(gather);
+  // v4.0: "Mix for you" datang belakangan ? scan ulang biar ikut fade-in
+  loadMixForYou().finally(() => { gather(); revealScan(view); });
 }
 
 /* "Mix for you" — personalized-feel shelf built from your listening history (no account needed) */
