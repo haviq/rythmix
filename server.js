@@ -562,6 +562,51 @@ app.get('/api/download-progress', async (req, res) => {
   }
 });
 
+/* v4.7: stream-proxy — ExoPlayer langsung disuruh mainkan URL ini; server yang
+   resolve (start loader job → poll sampai selesai → 302 ke file final).
+   URL mengandung videoId = TIDAK MUNGKIN lagu salah ketumpuk (race bug lenyap).
+   Cache hasil job in-memory 10 menit: permintaan ulang = redirect instan. */
+const streamJobs = new Map(); // videoId -> { url, expires }
+const STREAM_TTL = 10 * 60 * 1000;
+
+app.get('/api/stream.m4a', async (req, res) => {
+  const videoId = String(req.query.videoId || '');
+  if (!/^[\w-]{6,20}$/.test(videoId)) return res.status(400).json({ error: 'bad id' });
+  try {
+    // 1) cache — redirect instan
+    const hit = streamJobs.get(videoId);
+    if (hit && Date.now() < hit.expires && hit.url) {
+      return res.redirect(302, hit.url);
+    }
+    // 2) start job (client disconnect-safe: poling di background, res nunggu)
+    const su = `${LOADER_API}?format=m4a&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`;
+    const sr = await fetch(su, { headers: { 'User-Agent': DL_UA, Referer: 'https://loader.to/' } });
+    if (!sr.ok) throw new Error(`start ${sr.status}`);
+    const sd = await sr.json();
+    if (!sd.success || !sd.id || !sd.progress_url) throw new Error('converter refused');
+    const progressUrl = sd.progress_url;
+    // 3) poll max 90s
+    let finalUrl = null;
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const pr = await fetch(progressUrl, { headers: { 'User-Agent': DL_UA } });
+      if (!pr.ok) continue;
+      const pd = await pr.json();
+      if (pd.success && pd.download_url) { finalUrl = pd.download_url; break; }
+      if (pd.text === 'error') throw new Error('converter error');
+    }
+    if (!finalUrl) throw new Error('converter timeout');
+    streamJobs.set(videoId, { url: finalUrl, expires: Date.now() + STREAM_TTL });
+    if (streamJobs.size > 300) {
+      const cut = Date.now();
+      for (const [k, v] of streamJobs) { if (v.expires <= cut) streamJobs.delete(k); }
+    }
+    return res.redirect(302, finalUrl);
+  } catch (e) {
+    return res.status(502).json({ error: e.message || 'stream failed' });
+  }
+});
+
 /* resolve a YT Music / YouTube URL (playlist, album, artist, song) into an app route */
 app.get('/api/resolve', async (req, res) => {
   try {
