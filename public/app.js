@@ -3999,7 +3999,7 @@ function drawPipFrame() {
   const blocks = [];
   for (let i = from; i <= to; i++) {
     const active = i === idx;
-    ctx.font = b.active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
+    ctx.font = active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
     const wrapped = wrapCanvasText(ctx, lines[i], maxW);
     const lh = active ? 38 : 28;
     blocks.push({ i, active, wrapped, lh, h: wrapped.length * lh });
