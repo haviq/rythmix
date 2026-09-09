@@ -835,6 +835,87 @@ html[data-theme="light"] .tb-btn {
   margin-bottom: 22px;
 }
 
+/* ---------- studio hero (v3.8) ---------- */
+.studio-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 30px 32px;
+  margin-bottom: 26px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 180% at 8% 0%, hsl(var(--tint), 55%, 22%) 0%, transparent 55%),
+    linear-gradient(160deg, var(--card) 0%, var(--main-bg) 100%);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: var(--shadow);
+}
+.studio-hero .sh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.studio-hero .sh-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 10px var(--accent-bright);
+}
+.studio-hero .sh-title {
+  font-size: clamp(30px, 4vw, 44px);
+  letter-spacing: -0.045em;
+  margin: 0 0 8px;
+}
+.studio-hero .sh-sub {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 460px;
+}
+.studio-hero .sh-right {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(86px, 1fr));
+  gap: 10px;
+}
+.studio-hero .sh-stat {
+  background: color-mix(in srgb, var(--card-hover) 70%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 86px;
+}
+.studio-hero .sh-k {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--subdued);
+  margin-bottom: 4px;
+}
+.studio-hero .sh-v {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.studio-hero .sh-u {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 3px;
+}
+@media (max-width: 900px) {
+  .studio-hero { padding: 22px; }
+  .studio-hero .sh-right { grid-template-columns: repeat(2, 1fr); width: 100%; }
+}
+
 .hello-row .page-title {
   margin-bottom: 0;
 }
@@ -1946,11 +2027,13 @@ body.np-open.has-player #nowplaying {
 }
 
 .play-circle {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: var(--play-bg);
-  color: var(--play-fg);
+  /* v3.8: play bulat accent — nyambung dgn studio hero */
+  background: linear-gradient(150deg, var(--accent-bright), var(--accent));
+  color: #0b0b0f;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1958,8 +2041,9 @@ body.np-open.has-player #nowplaying {
 }
 
 .play-circle .ic {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
 }
 
 .play-circle:hover {

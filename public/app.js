@@ -2045,7 +2045,23 @@ async function viewHome(view) {
   const pls = Library.playlists.filter((p) => p.tracks && p.tracks.length);
   const saved = Library.saved.slice(0, 12);
   const dateLine = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
-  let html = `<div class="hello-row"><div><div class="greeting">${esc(dateLine)}</div><h1 class="page-title">${greet}</h1></div>${helloMetaHTML()}</div>`;
+  // v3.8: hero studio panel — statistik dari data beneran (riwayat play), tanpa label palsu
+  const days = new Set(Library.history.map((s) => s.at ? new Date(s.at).toDateString() : '')).size;
+  const totalPlays = Library.history.length + (Library.stats && Library.stats.plays || 0);
+  const hero = `<section class="studio-hero">
+    <div class="sh-left">
+      <div class="sh-badge"><span class="sh-dot"></span>${esc(greet).toUpperCase()} · RYTHMIX ACTIVE</div>
+      <h1 class="page-title sh-title">${greet}</h1>
+      <div class="sh-sub">Koleksi & chart siap diputar. Fokus dengerin, sisanya biar Rythmix.</div>
+    </div>
+    <div class="sh-right">
+      <div class="sh-stat"><div class="sh-k">TOTAL PLAY</div><div class="sh-v">${totalPlays}</div></div>
+      <div class="sh-stat"><div class="sh-k">FAVORIT</div><div class="sh-v">${Library.favorites.length}</div></div>
+      <div class="sh-stat"><div class="sh-k">PLAYLIST</div><div class="sh-v">${Library.playlists.length}</div></div>
+      <div class="sh-stat"><div class="sh-k">AKTIF</div><div class="sh-v">${days}<span class="sh-u">hari</span></div></div>
+    </div>
+  </section>`;
+  let html = hero;
   if (hist.length) {
     html += `<div class="shelf-title">Recently played</div><div class="quick-grid">${hist.slice(0, 8).map((s) => quickCardHTML({ ...s, type: 'song', subtitle: s.artist })).join('')}</div>`;
   }
