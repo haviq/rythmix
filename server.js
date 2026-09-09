@@ -565,43 +565,82 @@ app.get('/api/download-progress', async (req, res) => {
 /* v4.7: stream-proxy — ExoPlayer langsung disuruh mainkan URL ini; server yang
    resolve (start loader job → poll sampai selesai → 302 ke file final).
    URL mengandung videoId = TIDAK MUNGKIN lagu salah ketumpuk (race bug lenyap).
-   Cache hasil job in-memory 10 menit: permintaan ulang = redirect instan. */
-const streamJobs = new Map(); // videoId -> { url, expires }
+   Cache hasil job in-memory 10 menit: permintaan ulang = redirect instan.
+
+   v4.7b serverless-safe: konversi bisa >60s (Vercel bunuh function) → dua mode:
+   - ?wait=1  : poll sampai selesai (dipakai retry/prewarm background, max 55s)
+   - default  : tunggu max 8s, kalau belum selesai → 202 {pending:true, retryAfter:3}
+   Client ExoPlayer: kalau 202, tunggu retryAfter lalu request ulang sama URL.
+   Job status persist di map — request berikutnya melanjutkan tanpa mulai ulang. */
+const streamJobs = new Map(); // videoId -> { url, expires, started, done, error }
 const STREAM_TTL = 10 * 60 * 1000;
+
+async function streamJobWorker(videoId, progressUrl, started) {
+  const j = streamJobs.get(videoId);
+  if (!j || j.done || j.error) return;
+  for (let i = 0; i < 55; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const cur = streamJobs.get(videoId);
+    if (!cur || cur.started !== started) return; // job digantikan
+    try {
+      const pr = await fetch(progressUrl, { headers: { 'User-Agent': DL_UA } });
+      if (!pr.ok) continue;
+      const pd = await pr.json();
+      if (pd.success && pd.download_url) {
+        cur.url = pd.download_url;
+        cur.expires = Date.now() + STREAM_TTL;
+        cur.done = true;
+        return;
+      }
+      if (pd.text === 'error') { cur.error = true; return; }
+    } catch (e) { /* lanjut poll */ }
+  }
+  const cur = streamJobs.get(videoId);
+  if (cur && cur.started === started && !cur.done) cur.error = true;
+}
 
 app.get('/api/stream.m4a', async (req, res) => {
   const videoId = String(req.query.videoId || '');
+  const waitMode = req.query.wait === '1';
   if (!/^[\w-]{6,20}$/.test(videoId)) return res.status(400).json({ error: 'bad id' });
   try {
     // 1) cache — redirect instan
     const hit = streamJobs.get(videoId);
-    if (hit && Date.now() < hit.expires && hit.url) {
+    if (hit && hit.done && hit.url && Date.now() < hit.expires) {
       return res.redirect(302, hit.url);
     }
-    // 2) start job (client disconnect-safe: poling di background, res nunggu)
-    const su = `${LOADER_API}?format=m4a&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`;
-    const sr = await fetch(su, { headers: { 'User-Agent': DL_UA, Referer: 'https://loader.to/' } });
-    if (!sr.ok) throw new Error(`start ${sr.status}`);
-    const sd = await sr.json();
-    if (!sd.success || !sd.id || !sd.progress_url) throw new Error('converter refused');
-    const progressUrl = sd.progress_url;
-    // 3) poll max 90s
-    let finalUrl = null;
-    for (let i = 0; i < 90; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      const pr = await fetch(progressUrl, { headers: { 'User-Agent': DL_UA } });
-      if (!pr.ok) continue;
-      const pd = await pr.json();
-      if (pd.success && pd.download_url) { finalUrl = pd.download_url; break; }
-      if (pd.text === 'error') throw new Error('converter error');
+    if (hit && hit.error && Date.now() < (hit.started + 30 * 1000)) {
+      // error terlalu segar → jangan spam converter, langsung gagal
+      return res.status(502).json({ error: 'converter error' });
     }
-    if (!finalUrl) throw new Error('converter timeout');
-    streamJobs.set(videoId, { url: finalUrl, expires: Date.now() + STREAM_TTL });
-    if (streamJobs.size > 300) {
-      const cut = Date.now();
-      for (const [k, v] of streamJobs) { if (v.expires <= cut) streamJobs.delete(k); }
+    // 2) mulai job baru kalau belum ada yang jalan
+    if (!hit || (!hit.done && (Date.now() - (hit.started || 0)) > 120 * 1000)) {
+      const su = `${LOADER_API}?format=m4a&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`;
+      const sr = await fetch(su, { headers: { 'User-Agent': DL_UA, Referer: 'https://loader.to/' } });
+      if (!sr.ok) throw new Error(`start ${sr.status}`);
+      const sd = await sr.json();
+      if (!sd.success || !sd.id || !sd.progress_url) throw new Error('converter refused');
+      const started = Date.now();
+      streamJobs.set(videoId, { url: null, expires: 0, started, done: false, error: false, progressUrl: sd.progress_url });
+      streamJobWorker(videoId, sd.progress_url, started); // background, tanpa await
+    } else if (hit && !hit.done && !hit.progressUrl) {
+      throw new Error('job starting');
     }
-    return res.redirect(302, finalUrl);
+    // 3) jawab sesuai mode
+    const j = streamJobs.get(videoId);
+    if (j && j.done && j.url) return res.redirect(302, j.url);
+    if (waitMode) {
+      // background poller (v4.7b): tunggu hingga 50s
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const c = streamJobs.get(videoId);
+        if (!c) return res.status(502).json({ error: 'job lost' });
+        if (c.done && c.url) return res.redirect(302, c.url);
+        if (c.error) return res.status(502).json({ error: 'converter error' });
+      }
+      return res.status(504).json({ error: 'converter slow' });
+    }
+    return res.status(202).json({ pending: true, retryAfter: 3 });
   } catch (e) {
     return res.status(502).json({ error: e.message || 'stream failed' });
   }
