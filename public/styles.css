@@ -3529,6 +3529,14 @@ body.show-video #np-player.active #np-video {
   aspect-ratio: 16 / 9;
 }
 
+/* v4.4: tabs & mode row TIDAK PERNAH ketutup overlay video (yt-holder z-62 fixed) */
+.np-inner .np-tabs,
+.np-inner .np-topbar,
+.np-inner .np-mode-row {
+  position: relative;
+  z-index: 63;
+}
+
 /* v4.3: wrap ikut landscape saat video — tak ada ruang kotak kosong di bawah */
 body.show-video #np-player.active .np-art-wrap {
   aspect-ratio: 16 / 9;
