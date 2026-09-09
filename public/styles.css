@@ -3626,28 +3626,10 @@ body.show-video #yt-holder {
 }
 
 /* Laptop overlay (sidebar on, NP still fullscreen): don't leave a tiny floating cover */
-@media (min-width: 861px) and (max-width: 1099px) {
-  .np-art-wrap {
-    width: min(38vw, 400px);
-  }
+/* v4.3c: blok perantara dihapus — sidebar berlaku dari 861px */
 
-  #np-player.active {
-    justify-content: flex-start;
-    gap: 16px;
-    overflow: hidden;
-  }
-
-  .np-volume {
-    display: none;
-  }
-
-  .np-tabs {
-    flex-wrap: nowrap;
-  }
-}
-
-/* Desktop: Now Playing as right sidebar (Spotify 2024) */
-@media (min-width: 1100px) {
+/* Desktop: Now Playing as right sidebar (Spotify 2024) — v4.3c: dari 861px */
+@media (min-width: 861px) {
   #nowplaying:not(.hidden) {
     position: relative;
     inset: auto;
@@ -4394,8 +4376,9 @@ html[data-theme="light"] .modal-card .pl-form-input {
   }
 }
 
-/* ---------- Rythmix iOS: kill Spotify 3-col dock -> fullscreen sheet ---------- */
-@media (min-width: 1100px) {
+/* ---------- v4.3c: fullscreen sheet HANYA mobile (<=860px) — dulu min-1100 =
+   menimpa sidebar desktop di SEMUA ukuran (layering ketumpuk di 861-1099) ---------- */
+@media (max-width: 860px) {
   #nowplaying {
     position: fixed;
     inset: 0;
