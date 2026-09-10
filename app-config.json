@@ -1,9 +1,9 @@
 {
   "release": {
-    "versionCode": 71,
-    "versionName": "4.2",
-    "url": "https://github.com/haviq/rythmix/releases/download/v4.2/rythmix-v4.2.apk",
-    "changelog": "Seek bar ga ngulang lagi (CBR seeking on), ganti lagu instan, seek main-thread safe.",
+    "versionCode": 72,
+    "versionName": "4.3",
+    "url": "https://github.com/haviq/rythmix/releases/download/v4.3/rythmix-v4.3.apk",
+    "changelog": "Prewarm device-local: 3 lagu berikutnya di-resolve saat lagu mulai, next instan. Poll 500ms.",
     "force": false
   }
 }
