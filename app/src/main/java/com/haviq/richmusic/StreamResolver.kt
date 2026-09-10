@@ -33,6 +33,7 @@ object StreamResolver {
     // videoId -> (url, expireAtMillis). Expire ABSOLUT — URL loader.to berumur pendek,
     // tidak boleh ikut TTL 5.5h milik URL NewPipe (signed ~6h).
     private val cache = ConcurrentHashMap<String, Pair<String, Long>>()
+    @Volatile var currentResolvingId: String? = null
     private const val CACHE_MS = 5L * 60 * 60 * 1000
     private const val LOADER_TTL_MS = 10L * 60 * 1000
     private const val MAX_ENTRIES = 250

@@ -561,7 +561,9 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface fun seekTo(seconds: Double) {
             if (resolving) return // v2.9: seek mid-resolve = target item lama
             if (engineVideoActive) { AudioService.engineSeek(seconds); return }
-            scope.launch { AudioService.player?.seekTo((seconds * 1000).toLong()) }
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                AudioService.player?.seekTo((seconds * 1000).toLong())
+            }
         }
 
         @JavascriptInterface fun pause() {

@@ -234,8 +234,14 @@ class AudioService : Service() {
             .setReadTimeoutMs(60000)
             .setAllowCrossProtocolRedirects(true)
 
+        val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory()
+            .setConstantBitrateSeekingEnabled(true)
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+            DefaultDataSource.Factory(this, http),
+            extractorsFactory
+        )
         val p = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http)))
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(
                 androidx.media3.common.AudioAttributes.Builder()
                     .setUsage(androidx.media3.common.C.USAGE_MEDIA)
