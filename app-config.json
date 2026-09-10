@@ -1,12 +1,9 @@
 {
   "release": {
-    "versionCode": 69,
-    "versionName": "4.0",
-    "url": "https://github.com/haviq/rythmix/releases/download/v4.0/rythmix-v4.0.apk",
-    "notes": "v4.0: Perbaikan mutlak bug ganti lagu (menghapus blok guard dini korutin native yang membuat lagu nyangkut/tidak terganti), tombol close player (X) pada miniplayer mobile, dan lyric auto-offset default 0."
-  },
-  "maintenance": {
-    "enabled": false,
-    "message": "Rythmix sedang maintenance. Coba lagi sebentar ya."
+    "versionCode": 70,
+    "versionName": "4.1",
+    "url": "https://github.com/haviq/rythmix/releases/download/v4.1/rythmix-v4.1.apk",
+    "changelog": "Perbaikan perpindahan lagu instan tanpa suara nyangkut, sinkronisasi audio Main Looper, miniplayer close button, dan auto-offset lirik fixed di 0.",
+    "force": false
   }
 }
