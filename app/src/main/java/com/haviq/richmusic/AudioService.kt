@@ -80,6 +80,65 @@ class AudioService : Service() {
             onTick?.invoke(state, posSec, durSec)
         }
 
+        @JvmStatic
+        fun stopPlayer() {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    player?.stop()
+                    player?.clearMediaItems()
+                } catch (_: Exception) {}
+            }
+        }
+
+        @JvmStatic
+        fun pausePlayer() {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    player?.pause()
+                } catch (_: Exception) {}
+            }
+        }
+
+        @JvmStatic
+        fun resumePlayer() {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    player?.play()
+                } catch (_: Exception) {}
+            }
+        }
+
+        @JvmStatic
+        fun setMediaAndPlay(uri: String, title: String, artist: String, videoId: String, startMs: Long, targetGen: Int) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (targetGen != playGen) return@post
+                val p = player ?: return@post
+                try {
+                    p.stop()
+                    p.clearMediaItems()
+                    p.setMediaItem(
+                        androidx.media3.common.MediaItem.Builder()
+                            .setUri(android.net.Uri.parse(uri))
+                            .setMediaMetadata(
+                                androidx.media3.common.MediaMetadata.Builder()
+                                    .setTitle(title)
+                                    .setArtist(artist)
+                                    .setArtworkUri(android.net.Uri.parse("https://i.ytimg.com/vi/$videoId/hqdefault.jpg"))
+                                    .build()
+                            )
+                            .build(),
+                        startMs
+                    )
+                    p.prepare()
+                    p.play()
+                    mediaGen = targetGen
+                    attachAudioFx(p.audioSessionId)
+                } catch (e: Exception) {
+                    android.util.Log.e("AudioService", "setMediaAndPlay error: ${e.message}")
+                }
+            }
+        }
+
         // attach Equalizer + Visualizer to the player's audio session
         // v1.4: viz retried on every STATE_READY until it exists (permission may arrive late)
         // v1.7: track session id — if sink re-inits with a NEW id, release old eq/viz first

@@ -475,7 +475,6 @@ class MainActivity : AppCompatActivity() {
             StreamResolver.prewarm(videoId)
         }
 
-        @JavascriptInterface
         fun playUrl(url: String, title: String, artist: String, startSeconds: Double) {
             playRequested = false
             resolving = true // v3.0: sync guard
@@ -912,9 +911,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface fun stop() {
-            // v3.0: clear item — stop() nyisain lagu lama, resume() bisa replay
-            AudioService.player?.stop()
-            AudioService.player?.clearMediaItems()
+            AudioService.stopPlayer()
+            playingVideoId = null
+            resolving = false
+            playRequested = false
         }
         @JavascriptInterface fun isPlaying(): Boolean = AudioService.player?.isPlaying == true
         @JavascriptInterface fun getCurrentTime(): Double = (AudioService.player?.currentPosition ?: 0L) / 1000.0

@@ -167,7 +167,13 @@ object StreamResolver {
         val progressUrl = obj.optString("progressUrl")
         if (progressUrl.isBlank()) throw IllegalStateException("loader: no progress url")
         repeat(30) {
-            Thread.sleep(1000)
+            if (currentResolvingId != null && currentResolvingId != videoId) {
+                throw IllegalStateException("loader: superseded by newer track")
+            }
+            Thread.sleep(700)
+            if (currentResolvingId != null && currentResolvingId != videoId) {
+                throw IllegalStateException("loader: superseded by newer track")
+            }
             val body = (URL(progressUrl).openConnection() as HttpURLConnection).let { c ->
                 c.connectTimeout = 10_000; c.readTimeout = 15_000
                 c.inputStream.bufferedReader().use { it.readText() }
@@ -183,6 +189,7 @@ object StreamResolver {
 
     suspend fun resolve(videoId: String, preferredTitle: String = "", preferredArtist: String = ""): StreamInfo =
         withContext(Dispatchers.IO) {
+            currentResolvingId = videoId
             val now = System.currentTimeMillis()
             val hit = cache[videoId]
             if (hit != null && now < hit.second) {
