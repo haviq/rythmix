@@ -171,7 +171,7 @@ object StreamResolver {
             if (currentResolvingId != null && currentResolvingId != videoId) {
                 throw IllegalStateException("loader: superseded by newer track")
             }
-            Thread.sleep(700)
+            Thread.sleep(500)
             if (currentResolvingId != null && currentResolvingId != videoId) {
                 throw IllegalStateException("loader: superseded by newer track")
             }
@@ -188,9 +188,9 @@ object StreamResolver {
         throw IllegalStateException("loader: timeout")
     }
 
-    suspend fun resolve(videoId: String, preferredTitle: String = "", preferredArtist: String = ""): StreamInfo =
+    suspend fun resolve(videoId: String, preferredTitle: String = "", preferredArtist: String = "", isUser: Boolean = true): StreamInfo =
         withContext(Dispatchers.IO) {
-            currentResolvingId = videoId
+            if (isUser) currentResolvingId = videoId
             val now = System.currentTimeMillis()
             val hit = cache[videoId]
             if (hit != null && now < hit.second) {
@@ -224,15 +224,13 @@ object StreamResolver {
         val now = System.currentTimeMillis()
         val hit = cache[videoId]
         if (hit != null && now < hit.second) return
+        // v4.3: resolve BENERAN di device (bukan cuma ping server — Vercel stateless,
+        // cache server gak nyambung antar request). Hasil masuk cache lokal →
+        // klik next = instan 0ms.
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             try {
-                val conn = URL("https://rythmix-music.vercel.app/api/stream.m4a?videoId=$videoId&wait=1").openConnection() as HttpURLConnection
-                conn.instanceFollowRedirects = false
-                conn.connectTimeout = 5_000
-                conn.readTimeout = 55_000
-                conn.requestMethod = "GET"
-                conn.responseCode // 302 = server cache warm; 202 = job jalan (worker lanjut)
-                conn.disconnect()
+                if (cache[videoId]?.let { now < it.second } == true) return@launch
+                resolve(videoId, isUser = false)
             } catch (_: Exception) {}
         }
     }
