@@ -5500,8 +5500,8 @@ body.np-fullscreen #miniplayer,
   display: none !important;
 }
 
-@media (min-width: 861px) {
-  #nowplaying.fullscreen {
+/* Fullscreen Now Playing works universally on Mobile & Desktop */
+#nowplaying.fullscreen {
     position: fixed !important;
     inset: 0 !important;
     width: 100vw !important;
@@ -6065,5 +6065,25 @@ body.np-fullscreen #miniplayer,
       top: 66px !important;
     }
   }
-}
 
+@media (max-width: 650px) {
+  #nowplaying.fullscreen .np-topbar {
+    top: 14px !important;
+    left: 14px !important;
+    right: 14px !important;
+  }
+  #nowplaying.fullscreen .np-tabs {
+    top: 14px !important;
+    padding: 3px !important;
+  }
+  #nowplaying.fullscreen .np-tab {
+    padding: 6px 10px !important;
+    font-size: 11.5px !important;
+  }
+  #nowplaying.fullscreen .np-mode-row {
+    top: 56px !important;
+  }
+  #nowplaying.fullscreen .np-body {
+    top: 96px !important;
+  }
+}

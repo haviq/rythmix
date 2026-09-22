@@ -4488,6 +4488,7 @@ if ($('#np-speed-toggle')) {
 })();
 
 /* ---------- Toggle Fullscreen for Now Playing (UI Pro Max) ---------- */
+/* ---------- Toggle Fullscreen for Now Playing (Universal Mobile + Desktop) ---------- */
 function toggleNPFullscreen() {
   const np = $('#nowplaying');
   if (!np) return;
@@ -4498,6 +4499,27 @@ function toggleNPFullscreen() {
 
   const isFs = np.classList.toggle('fullscreen');
   document.body.classList.toggle('np-fullscreen', isFs);
+
+  // Trigger HTML5 native fullscreen if supported
+  try {
+    if (isFs) {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+        }
+      }
+    } else {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+  } catch {}
 
   const fsIc = $('#np-fs-ic use');
   if (fsIc) {
@@ -4517,8 +4539,33 @@ function toggleNPFullscreen() {
     }, 150);
   }
 
-  if (typeof syncVideoRect === 'function') syncVideoRect();
+  if (typeof syncVideoRect === 'function') {
+    syncVideoRect();
+    setTimeout(syncVideoRect, 50);
+    setTimeout(syncVideoRect, 150);
+    setTimeout(syncVideoRect, 320);
+  }
 }
 
-const npFsBtn = $('#np-fullscreen');
-if (npFsBtn) npFsBtn.addEventListener('click', toggleNPFullscreen);
+// Event delegation guarantees click/touch always fires on any device
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('#np-fullscreen');
+  if (btn) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleNPFullscreen();
+  }
+});
+
+// Sync state if user exits via browser gesture / Escape
+document.addEventListener('fullscreenchange', () => {
+  const np = $('#nowplaying');
+  if (!np) return;
+  if (!document.fullscreenElement && np.classList.contains('fullscreen')) {
+    np.classList.remove('fullscreen');
+    document.body.classList.remove('np-fullscreen');
+    const fsIc = $('#np-fs-ic use');
+    if (fsIc) fsIc.setAttribute('href', '#i-expand');
+    if (typeof syncVideoRect === 'function') setTimeout(syncVideoRect, 100);
+  }
+});
