@@ -209,11 +209,41 @@ const cache = new Map();
 function cached(key, ttlMs, fn) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.t < ttlMs) return Promise.resolve(hit.v);
-  return fn().then((v) => {
-    cache.set(key, { v, t: Date.now() });
-    return v;
-  });
+  return fn()
+    .then((v) => {
+      cache.set(key, { v, t: Date.now() });
+      return v;
+    })
+    .catch((err) => {
+      if (hit && hit.v) {
+        console.warn(`[CACHE FALLBACK] Serving cached ${key} due to error: ${err.message}`);
+        return hit.v;
+      }
+      throw err;
+    });
 }
+
+app.get('/api/explore', async (req, res) => {
+  try {
+    const data = await cached('ytm_explore', 15 * 60 * 1000, async () => {
+      const p1 = browsePage('FEmusic_explore').catch(() => ({ sections: [] }));
+      const p2 = yt('browse', { browseId: 'FEmusic_charts' }).catch(() => null);
+      const [exp, cRaw] = await Promise.all([p1, p2]);
+      let sections = exp.sections || [];
+      if (cRaw) {
+        const sl = findFirst(cRaw, 'sectionListRenderer');
+        if (sl) {
+          const cSecs = parseSections(sl.contents);
+          sections = sections.concat(cSecs);
+        }
+      }
+      return { sections };
+    });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.get('/api/home', async (req, res) => {
   try {

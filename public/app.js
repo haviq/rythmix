@@ -2593,126 +2593,101 @@ function viewSettings(view) {
     viewSettings(view); syncNpMore();
   }));
 }
-/* ---- YT Music: Official Hub & URL Converter ---- */
-function viewYTM(view) {
+/* ---- YT Music: Full Interactive In-App Experience ---- */
+async function viewYTM(view) {
+  // Read local cache for instantaneous rendering
+  let cachedData = null;
+  try {
+    const raw = localStorage.getItem('rm_ytm_explore_cache');
+    if (raw) cachedData = JSON.parse(raw);
+  } catch (e) {}
+
+  let allSections = (cachedData && cachedData.sections) || [];
+
   view.innerHTML = `
     <div class="ytm-hub">
       <div class="ytm-hero-card">
-        <div class="ytm-badge-pill">
-          <svg class="ytm-icon-brand" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="12" fill="#ff0000"/>
-            <circle cx="12" cy="12" r="7" fill="#0f0f11"/>
-            <polygon points="10,8 16,12 10,16" fill="#ffffff"/>
-          </svg>
-          <span>YouTube Music Integration</span>
+        <div class="ytm-hero-topline">
+          <div class="ytm-badge-pill">
+            <svg class="ytm-icon-brand" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="12" fill="#ff0000"/>
+              <circle cx="12" cy="12" r="7" fill="#0f0f11"/>
+              <polygon points="10,8 16,12 10,16" fill="#ffffff"/>
+            </svg>
+            <span class="ytm-live-dot"></span>
+            <span>YouTube Music Online</span>
+          </div>
+          <a href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" class="ytm-ext-link">
+            <span>Buka Web Resmi ↗</span>
+          </a>
         </div>
-        <h1 class="ytm-title">YouTube Music Official Hub</h1>
+
+        <h1 class="ytm-title">YouTube Music Eksplorasi</h1>
         <p class="ytm-desc">
-          Katalog resmi YouTube Music terintegrasi langsung di Rythmix. Nikmati pemutaran audio bebas iklan, video resolusi tinggi, dan lirik tersinkronisasi.
+          Katalog resmi YouTube Music aktif langsung di Rythmix. Nikmati pemutaran audio bebas iklan, video resolusi tinggi, lirik tersinkronisasi, serta pemutaran latar belakang.
         </p>
 
-        <div class="ytm-notice-box">
-          <div class="ytm-notice-icon">
-            <svg class="ic"><use href="#i-more"/></svg>
-          </div>
-          <div class="ytm-notice-content">
-            <div class="ytm-notice-head">Informasi Pembatasan Embed Iframe oleh Google</div>
-            <div class="ytm-notice-body">
-              Google secara resmi memblokir pemuatan langsung situs web <code>music.youtube.com</code> di dalam iframe pihak ketiga (kebijakan keamanan <em>X-Frame-Options: SAMEORIGIN</em>). Buka web resminya di tab baru atau putar tautan apapun langsung di Rythmix tanpa batasan iklan.
-            </div>
-          </div>
-        </div>
-
-        <div class="ytm-btn-group">
-          <a href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" class="pill-btn primary ytm-launch-btn">
-            <svg class="ic"><use href="#i-share"/></svg>
-            <span>Buka YouTube Music Resmi (Tab Baru) ↗</span>
-          </a>
-          <button type="button" class="pill-btn" id="ytm-goto-search">
+        <!-- Universal Search & Link Resolver -->
+        <form class="ytm-search-form" id="ytm-explore-form">
+          <div class="ytm-input-wrap">
             <svg class="ic"><use href="#i-search"/></svg>
-            <span>Cari Lagu di Rythmix</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick Link Resolver / Player -->
-      <div class="ytm-tool-card">
-        <div class="ytm-tool-header">
-          <div class="ytm-tool-icon">
+            <input type="text" id="ytm-query-input" placeholder="Cari lagu, artis, playlist di YouTube Music atau tempel link..." autocomplete="off" />
+            <button type="button" id="ytm-clear-btn" class="hidden" title="Hapus">
+              <svg class="ic"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="pill-btn primary" id="ytm-submit-btn">
             <svg class="ic"><use href="#i-play"/></svg>
-          </div>
-          <div>
-            <h2 class="ytm-tool-title">Putar & Impor Link YouTube Music</h2>
-            <p class="ytm-tool-sub">Punya tautan lagu, playlist, atau album dari YouTube Music? Tempel di bawah untuk memutar atau menyimpannya langsung.</p>
-          </div>
-        </div>
-        <form class="ytm-input-form" id="ytm-quick-resolve-form">
-          <input type="text" id="ytm-quick-input" class="pl-form-input" placeholder="Tempel tautan (cth: https://music.youtube.com/watch?v=... atau https://youtu.be/...)" autocomplete="off" />
-          <button type="submit" class="pill-btn primary" id="ytm-quick-submit">
-            <svg class="ic"><use href="#i-download"/></svg>
-            <span>Putar di Rythmix</span>
+            <span>Cari / Putar</span>
           </button>
         </form>
       </div>
 
-      <!-- Direct Feature Discovery Grid -->
-      <div class="ytm-grid">
-        <div class="ytm-tile" data-nav="#/charts">
-          <div class="ytm-tile-icon icon-chart" style="background: rgba(255, 68, 68, 0.15); color: #ff4444;">
-            <svg class="ic"><use href="#i-chart"/></svg>
-          </div>
-          <div class="ytm-tile-title">Tangga Lagu Populer</div>
-          <div class="ytm-tile-sub">Lagu-lagu teratas dan trending YouTube Music global & Indonesia.</div>
-          <span class="ytm-tile-link">Buka Charts ↗</span>
-        </div>
+      <!-- Live Search Results Container -->
+      <div id="ytm-search-results" class="hidden"></div>
 
-        <div class="ytm-tile" data-nav="#/moods">
-          <div class="ytm-tile-icon icon-mood" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
-            <svg class="ic"><use href="#i-radio"/></svg>
-          </div>
-          <div class="ytm-tile-title">Moods & Genres</div>
-          <div class="ytm-tile-sub">Eksplorasi ribuan playlist berdasarkan suasana hati dan genre.</div>
-          <span class="ytm-tile-link">Jelajahi Moods ↗</span>
-        </div>
+      <!-- Quick Filter Pills -->
+      <div class="ytm-filter-bar">
+        <button class="ytm-pill-chip active" data-tab="all">Semua</button>
+        <button class="ytm-pill-chip" data-tab="trending">Trending</button>
+        <button class="ytm-pill-chip" data-tab="new">Rilisan Terbaru</button>
+        <button class="ytm-pill-chip" data-tab="videos">Video Musik</button>
+        <button class="ytm-pill-chip" data-tab="artists">Artis Teratas</button>
+      </div>
 
-        <div class="ytm-tile" data-nav="#/search">
-          <div class="ytm-tile-icon icon-search" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
-            <svg class="ic"><use href="#i-search"/></svg>
-          </div>
-          <div class="ytm-tile-title">Pencarian Cerdas</div>
-          <div class="ytm-tile-sub">Cari lagu, artis, album, dan lirik apapun tanpa iklan.</div>
-          <span class="ytm-tile-link">Mulai Mencari ↗</span>
-        </div>
-
-        <div class="ytm-tile" data-nav="#/library">
-          <div class="ytm-tile-icon icon-lib" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">
-            <svg class="ic"><use href="#i-library"/></svg>
-          </div>
-          <div class="ytm-tile-title">Koleksi Musik Saya</div>
-          <div class="ytm-tile-sub">Kelola playlist lokal, riwayat putar, dan lagu favorit kamu.</div>
-          <span class="ytm-tile-link">Buka Library ↗</span>
-        </div>
+      <!-- Live Shelves Container -->
+      <div id="ytm-shelves">
+        ${allSections.length ? '' : skeletonHTML}
       </div>
     </div>
   `;
 
-  // Bind events
-  const searchBtn = $('#ytm-goto-search', view);
-  if (searchBtn) searchBtn.addEventListener('click', () => go('#/search'));
+  // Bind Header & Search elements
+  const input = $('#ytm-query-input', view);
+  const clearBtn = $('#ytm-clear-btn', view);
+  const form = $('#ytm-explore-form', view);
+  const submitBtn = $('#ytm-submit-btn', view);
+  const resultsSlot = $('#ytm-search-results', view);
+  const shelvesSlot = $('#ytm-shelves', view);
+  const chips = $$('.ytm-pill-chip', view);
 
-  $$('[data-nav]', view).forEach((el) => {
-    el.addEventListener('click', () => go(el.dataset.nav));
-  });
-
-  const form = $('#ytm-quick-resolve-form', view);
-  const input = $('#ytm-quick-input', view);
-  const submitBtn = $('#ytm-quick-submit', view);
+  if (input && clearBtn) {
+    input.addEventListener('input', () => {
+      clearBtn.classList.toggle('hidden', !input.value);
+    });
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      clearBtn.classList.add('hidden');
+      if (resultsSlot) { resultsSlot.classList.add('hidden'); resultsSlot.innerHTML = ''; }
+      input.focus();
+    });
+  }
 
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const val = (input && input.value || '').trim();
-      if (!val) {
+      const q = (input && input.value || '').trim();
+      if (!q) {
         if (input) {
           input.focus();
           input.classList.add('shake');
@@ -2720,22 +2695,113 @@ function viewYTM(view) {
         }
         return;
       }
+
+      // Check if it is a URL
+      if (/^https?:\/\//i.test(q) || /youtu\.be/i.test(q) || /music\.youtube\.com/i.test(q)) {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `${icon('i-download')}<span>Memproses...</span>`;
+        }
+        toast('Memproses link YouTube Music…');
+        try {
+          await importFromLink(q);
+        } catch (err) {
+          toast('Gagal memproses tautan: ' + (err.message || 'Coba lagi'));
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `${icon('i-play')}<span>Cari / Putar</span>`;
+          }
+        }
+        return;
+      }
+
+      // Search query -> perform in-page search
+      if (resultsSlot) {
+        resultsSlot.classList.remove('hidden');
+        resultsSlot.innerHTML = `<div class="shelf-title">Hasil Pencarian: "${esc(q)}"</div><div class="loading-note">Mencari di YouTube Music…</div>`;
+        resultsSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `${icon('i-download')}<span>Memproses...</span>`;
+        submitBtn.innerHTML = `${icon('i-search')}<span>Mencari...</span>`;
       }
+
       try {
-        await importFromLink(val);
+        const d = await api('/api/search?q=' + encodeURIComponent(q));
+        if (resultsSlot) {
+          resultsSlot.innerHTML = `<div class="shelf-title">Hasil Pencarian: "${esc(q)}"</div>` + searchResultsHTML(d.sections || []);
+          bindItems(resultsSlot);
+          bindCarousels(resultsSlot);
+        }
       } catch (err) {
-        toast('Gagal memproses link: ' + (err.message || 'Coba lagi'));
+        if (resultsSlot) resultsSlot.innerHTML = `<div class="error-note">Gagal memuat hasil pencarian: ${esc(err.message)}</div>`;
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = `${icon('i-download')}<span>Putar di Rythmix</span>`;
+          submitBtn.innerHTML = `${icon('i-play')}<span>Cari / Putar</span>`;
         }
       }
     });
   }
+
+  // Section filtering & rendering
+  const renderSections = (filter = 'all') => {
+    if (!shelvesSlot) return;
+    let filtered = allSections;
+    if (filter === 'trending') {
+      filtered = allSections.filter((s) => /trending|populer|top/i.test(s.title || ''));
+    } else if (filter === 'new') {
+      filtered = allSections.filter((s) => /baru|new|release/i.test(s.title || ''));
+    } else if (filter === 'videos') {
+      filtered = allSections.filter((s) => /video|klip/i.test(s.title || ''));
+    } else if (filter === 'artists') {
+      filtered = allSections.filter((s) => /artis|artist/i.test(s.title || ''));
+    }
+    if (!filtered.length) filtered = allSections;
+
+    shelvesSlot.innerHTML = filtered.map(shelfHTML).join('');
+    bindItems(shelvesSlot);
+    bindCarousels(shelvesSlot);
+  };
+
+  if (allSections.length) {
+    renderSections('all');
+  }
+
+  // Fetch live explore data from /api/explore
+  try {
+    const d = await api('/api/explore');
+    if (d && d.sections && d.sections.length) {
+      allSections = d.sections;
+      try {
+        localStorage.setItem('rm_ytm_explore_cache', JSON.stringify({ sections: allSections, t: Date.now() }));
+      } catch (e) {}
+      const activeChip = $('.ytm-pill-chip.active', view);
+      renderSections(activeChip ? activeChip.dataset.tab : 'all');
+    }
+  } catch (e) {
+    if (!allSections.length) {
+      try {
+        const c = await api('/api/charts');
+        if (c && c.sections && c.sections.length) {
+          allSections = c.sections;
+          renderSections('all');
+        }
+      } catch (err2) {
+        if (shelvesSlot) shelvesSlot.innerHTML = emptyHTML('Katalog YouTube Music', 'Gagal memuat konten. Periksa jaringan Anda.', { label: 'Muat Ulang', go: '#/ytm', ic: 'i-chart' });
+      }
+    }
+  }
+
+  // Filter chips click handling
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      renderSections(chip.dataset.tab);
+    });
+  });
 }
 
 function viewDownloads(view) {
