@@ -1260,6 +1260,20 @@ function renderLyrics() {
   const saved = parseFloat(localStorage.getItem(lyOffKey())) || 0;
   if (!Player._lyricSyncKey && !localStorage.getItem(lyManKey())) Player.lyricOffset = saved;
   syncLyricOffsetUI();
+  const npCard = $('#np-card-lyrics');
+  if (npCard) {
+    npCard.style.setProperty('border', 'none', 'important');
+    npCard.style.setProperty('background', 'transparent', 'important');
+    npCard.style.setProperty('box-shadow', 'none', 'important');
+    npCard.style.setProperty('border-radius', '0', 'important');
+    npCard.style.setProperty('backdrop-filter', 'none', 'important');
+    npCard.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+    npCard.style.setProperty('outline', 'none', 'important');
+  }
+  const npCardContainer = $('#np-card-lyrics-container');
+  if (npCardContainer) {
+    npCardContainer.style.setProperty('scrollbar-width', 'none', 'important');
+  }
   const L = Player.lyrics;
   let html = '';
   if (L.lines.length) {

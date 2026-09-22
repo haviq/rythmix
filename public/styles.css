@@ -6721,6 +6721,9 @@ body.show-video #yt-holder.video-pos .np-video-fs-btn {
 /* ============================================================
    Now Playing: Embedded Synced Lyrics Card (Song Tab)
    ============================================================ */
+#nowplaying #np-player #np-card-lyrics,
+#nowplaying #np-card-lyrics,
+#nowplaying .np-card-lyrics,
 .np-card-lyrics {
   display: flex;
   flex-direction: column;
@@ -6729,6 +6732,9 @@ body.show-video #yt-holder.video-pos .np-video-fs-btn {
   min-height: 180px;
   background: transparent !important;
   border: none !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  outline: none !important;
   border-radius: 0 !important;
   padding: 4px 2px 12px;
   box-sizing: border-box;
@@ -6740,9 +6746,13 @@ body.show-video #yt-holder.video-pos .np-video-fs-btn {
   box-shadow: none !important;
 }
 
+html[data-theme="light"] #nowplaying #np-player #np-card-lyrics,
+html[data-theme="light"] #nowplaying #np-card-lyrics,
+html[data-theme="light"] #nowplaying .np-card-lyrics,
 html[data-theme="light"] .np-card-lyrics {
   background: transparent !important;
   border: none !important;
+  border-width: 0 !important;
   box-shadow: none !important;
 }
 
