@@ -6169,6 +6169,11 @@ body.np-fullscreen #nav-mobile,
     display: none !important;
   }
 
+  /* Media wrapper defaults to display: contents so it has zero impact in audio / normal views */
+  .np-player-media {
+    display: contents;
+  }
+
   /* Song player pane: Dead-center vertical and horizontal alignment */
   #nowplaying.fullscreen #np-player.active {
     display: flex !important;
@@ -6186,8 +6191,31 @@ body.np-fullscreen #nav-mobile,
     z-index: 15 !important;
   }
 
+  /* Video Mode in Desktop Fullscreen: Precision Side-by-Side Split View (Video Left, Lyrics Right) */
   body.show-video #nowplaying.fullscreen #np-player.active {
-    max-width: 600px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 94vw !important;
+    max-width: 1440px !important;
+    height: calc(100vh - 130px) !important;
+    max-height: calc(100vh - 130px) !important;
+    gap: clamp(24px, 3.8vw, 64px) !important;
+    padding: 0 20px !important;
+    margin: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-player-media {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 54% !important;
+    max-width: 760px !important;
+    width: 54% !important;
+    height: 100% !important;
     gap: 10px !important;
   }
 
@@ -6212,17 +6240,18 @@ body.np-fullscreen #nav-mobile,
     object-fit: cover !important;
   }
 
-    /* Video in Fullscreen: Proportionally sized so it NEVER overlaps header controls */
+  /* Video in Fullscreen: Proportionally sized so it NEVER overlaps header controls */
   body.show-video #nowplaying.fullscreen #np-player.active .np-art-wrap {
     aspect-ratio: 16 / 9 !important;
-    width: min(74vw, 560px) !important;
+    width: 100% !important;
+    max-width: 720px !important;
     height: auto !important;
-    max-height: 38vh !important;
-    max-width: 560px !important;
+    max-height: min(52vh, 420px) !important;
     border-radius: 20px !important;
     overflow: hidden !important;
     position: relative !important;
     flex-shrink: 1 !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.8) !important;
   }
 
   body.show-video #nowplaying.fullscreen #np-player.active #np-video {
@@ -6941,7 +6970,86 @@ html[data-theme="light"] .np-card-lyrics-container .lyric-plain {
   margin: 8px auto 0 !important;
 }
 
+/* Precision Split-View Lyrics for Desktop Fullscreen Video Mode */
 body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics {
-  display: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 46% !important;
+  max-width: 580px !important;
+  width: 46% !important;
+  height: 100% !important;
+  max-height: calc(100vh - 140px) !important;
+  margin: 0 !important;
+  padding: 8px 16px !important;
+  box-sizing: border-box !important;
+  border: none !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 8px !important;
+}
+
+body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-container {
+  flex: 1 1 0% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  padding: 30vh 14px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%) !important;
+}
+
+body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-container .lyric-line {
+  font-size: clamp(20px, 2vw, 28px) !important;
+  line-height: 1.45 !important;
+  padding: 12px 10px !important;
+  font-weight: 800 !important;
+  transform-origin: center center !important;
+}
+
+body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-container .lyric-line.active {
+  color: #ffd75e !important;
+  opacity: 1 !important;
+  transform: scale(1.08) !important;
+  text-shadow: 0 0 24px rgba(255, 215, 94, 0.6), 0 2px 12px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Responsiveness for Mobile & Smaller Screens in Fullscreen Video Mode */
+@media (max-width: 860px) {
+  body.show-video #nowplaying.fullscreen #np-player.active {
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 8px !important;
+  }
+  body.show-video #nowplaying.fullscreen #np-player.active .np-player-media {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 92vw !important;
+    max-height: 200px !important;
+    margin: 8px auto 0 !important;
+    padding: 4px 8px !important;
+  }
+  body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-container {
+    padding: 18px 4px !important;
+  }
+  body.show-video #nowplaying.fullscreen #np-player.active .np-card-lyrics-container .lyric-line {
+    font-size: 16px !important;
+    padding: 6px 8px !important;
+  }
 }
 

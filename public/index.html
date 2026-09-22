@@ -87,7 +87,7 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 </style>
-<link rel="stylesheet" href="styles.min.css?v=v75" />
+<link rel="stylesheet" href="styles.min.css?v=v76" />
 </head>
 <body>
 <div id="splash" aria-hidden="true">
@@ -259,50 +259,52 @@ html, body {
       </div>
       <div class="np-body">
         <section id="np-player" class="np-pane active">
-          <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" />
-            <!-- v2.7: video menimpa thumbnail (web: iframe di slot; native: placeholder rect utk ExoPlayer) -->
-            <div id="np-video"><div class="np-video-crop"><div id="np-video-slot"></div></div><button type="button" id="np-video-fs-btn" class="np-video-fs-btn" title="Layar Penuh / Fullscreen"><svg class="ic" id="np-video-fs-ic"><use href="#i-expand"/></svg></button></div>
-          </div>
-          <div class="np-meta">
-            <div id="np-title">—</div>
-            <div id="np-artist">—</div>
-          </div>
-          <div class="np-seek">
-            <span id="np-cur">0:00</span>
-            <input type="range" id="np-range" min="0" max="1000" value="0" />
-            <span id="np-dur">0:00</span>
-          </div>
-          <div class="np-controls">
-            <button id="np-shuffle" class="icon-btn" title="Shuffle"><svg class="ic"><use href="#i-shuffle"/></svg></button>
-            <button id="np-prev" class="icon-btn" title="Previous"><svg class="ic"><use href="#i-prev"/></svg></button>
-            <button id="np-play" class="play-big" title="Play/Pause"><svg class="ic"><use href="#i-play"/></svg></button>
-            <button id="np-next" class="icon-btn" title="Next"><svg class="ic"><use href="#i-next"/></svg></button>
-            <button id="np-repeat" class="icon-btn" title="Repeat"><svg class="ic"><use href="#i-repeat"/></svg></button>
-          </div>
-          <div class="np-actions">
-            <button id="np-playnext" class="pill-btn hidden" title="Play next"><svg class="ic"><use href="#i-next"/></svg><span>Play next</span></button>
-            <button id="np-queueadd" class="pill-btn hidden" title="Add to queue"><svg class="ic"><use href="#i-queue"/></svg><span>Add to queue</span></button>
-            <button id="np-like" class="pill-btn"><svg class="ic"><use href="#i-heart-o"/></svg><span>Favorite</span></button>
-            <button id="np-addpl" class="pill-btn"><svg class="ic"><use href="#i-plus"/></svg><span>Playlist</span></button>
-            <button id="np-more" class="pill-btn" title="More"><svg class="ic"><use href="#i-more"/></svg><span>More</span></button>
-            <button id="np-download" class="pill-btn np-extra" title="Download"><svg class="ic"><use href="#i-download"/></svg><span>Download</span></button>
-            <button id="np-share" class="pill-btn np-extra" title="Share"><svg class="ic"><use href="#i-share"/></svg><span>Share</span></button>
-            <div class="speed-wrap np-extra" title="Playback speed">
-              <button id="np-speed-toggle" class="pill-btn"><svg class="ic"><use href="#i-clock"/></svg><span id="speed-label">1×</span></button>
-              <div id="speed-slider-wrap" style="display:none; position:absolute; bottom:120%; background:var(--c-bg); border:1px solid var(--c-border); border-radius:12px; padding:10px; width:40px; height:120px; z-index:90;">
-                <input type="range" id="np-speed-slider" min="0.5" max="2.0" step="0.25" value="1" orient="vertical" style="appearance:slider-vertical; height:100%; width:100%;">
+          <div class="np-player-media">
+            <div class="np-art-wrap" id="np-art-wrap"><img id="np-art" alt="" />
+              <!-- v2.7: video menimpa thumbnail (web: iframe di slot; native: placeholder rect utk ExoPlayer) -->
+              <div id="np-video"><div class="np-video-crop"><div id="np-video-slot"></div></div><button type="button" id="np-video-fs-btn" class="np-video-fs-btn" title="Layar Penuh / Fullscreen"><svg class="ic" id="np-video-fs-ic"><use href="#i-expand"/></svg></button></div>
+            </div>
+            <div class="np-meta">
+              <div id="np-title">—</div>
+              <div id="np-artist">—</div>
+            </div>
+            <div class="np-seek">
+              <span id="np-cur">0:00</span>
+              <input type="range" id="np-range" min="0" max="1000" value="0" />
+              <span id="np-dur">0:00</span>
+            </div>
+            <div class="np-controls">
+              <button id="np-shuffle" class="icon-btn" title="Shuffle"><svg class="ic"><use href="#i-shuffle"/></svg></button>
+              <button id="np-prev" class="icon-btn" title="Previous"><svg class="ic"><use href="#i-prev"/></svg></button>
+              <button id="np-play" class="play-big" title="Play/Pause"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button id="np-next" class="icon-btn" title="Next"><svg class="ic"><use href="#i-next"/></svg></button>
+              <button id="np-repeat" class="icon-btn" title="Repeat"><svg class="ic"><use href="#i-repeat"/></svg></button>
+            </div>
+            <div class="np-actions">
+              <button id="np-playnext" class="pill-btn hidden" title="Play next"><svg class="ic"><use href="#i-next"/></svg><span>Play next</span></button>
+              <button id="np-queueadd" class="pill-btn hidden" title="Add to queue"><svg class="ic"><use href="#i-queue"/></svg><span>Add to queue</span></button>
+              <button id="np-like" class="pill-btn"><svg class="ic"><use href="#i-heart-o"/></svg><span>Favorite</span></button>
+              <button id="np-addpl" class="pill-btn"><svg class="ic"><use href="#i-plus"/></svg><span>Playlist</span></button>
+              <button id="np-more" class="pill-btn" title="More"><svg class="ic"><use href="#i-more"/></svg><span>More</span></button>
+              <button id="np-download" class="pill-btn np-extra" title="Download"><svg class="ic"><use href="#i-download"/></svg><span>Download</span></button>
+              <button id="np-share" class="pill-btn np-extra" title="Share"><svg class="ic"><use href="#i-share"/></svg><span>Share</span></button>
+              <div class="speed-wrap np-extra" title="Playback speed">
+                <button id="np-speed-toggle" class="pill-btn"><svg class="ic"><use href="#i-clock"/></svg><span id="speed-label">1×</span></button>
+                <div id="speed-slider-wrap" style="display:none; position:absolute; bottom:120%; background:var(--c-bg); border:1px solid var(--c-border); border-radius:12px; padding:10px; width:40px; height:120px; z-index:90;">
+                  <input type="range" id="np-speed-slider" min="0.5" max="2.0" step="0.25" value="1" orient="vertical" style="appearance:slider-vertical; height:100%; width:100%;">
+                </div>
+              </div>
+              <button id="np-eq" class="pill-btn np-extra" title="Equalizer"><svg class="ic"><use href="#i-eq"/></svg><span>EQ</span></button>
+              <button id="np-viz" class="pill-btn np-extra" title="Visualizer"><svg class="ic"><use href="#i-wave"/></svg><span>Viz</span></button>
+              <button id="np-float" class="pill-btn np-extra" title="Floating widget"><svg class="ic"><use href="#i-pip"/></svg><span>Widget</span></button>
+              <button id="np-quality" class="pill-btn np-extra" title="YouTube Music audio — tap for YouTube max quality"><span>Quality</span></button>
+              <button id="np-sb" class="pill-btn np-extra" title="SponsorBlock auto-skip"><svg class="ic"><use href="#i-next"/></svg><span>SB</span></button>
+              <div class="np-volume">
+                <svg class="ic vol-ic"><use href="#i-volume"/></svg><input type="range" id="np-volume" min="0" max="100" value="100" />
               </div>
             </div>
-            <button id="np-eq" class="pill-btn np-extra" title="Equalizer"><svg class="ic"><use href="#i-eq"/></svg><span>EQ</span></button>
-            <button id="np-viz" class="pill-btn np-extra" title="Visualizer"><svg class="ic"><use href="#i-wave"/></svg><span>Viz</span></button>
-            <button id="np-float" class="pill-btn np-extra" title="Floating widget"><svg class="ic"><use href="#i-pip"/></svg><span>Widget</span></button>
-            <button id="np-quality" class="pill-btn np-extra" title="YouTube Music audio — tap for YouTube max quality"><span>Quality</span></button>
-            <button id="np-sb" class="pill-btn np-extra" title="SponsorBlock auto-skip"><svg class="ic"><use href="#i-next"/></svg><span>SB</span></button>
-            <div class="np-volume">
-              <svg class="ic vol-ic"><use href="#i-volume"/></svg><input type="range" id="np-volume" min="0" max="100" value="100" />
-            </div>
+            <div id="np-lyric-preview" title="Open lyrics"></div>
           </div>
-          <div id="np-lyric-preview" title="Open lyrics"></div>
           <div id="np-card-lyrics" class="np-card-lyrics" style="border: none !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; outline: none !important; text-align: center !important; align-items: center !important;">
             <div class="np-card-lyrics-header">
               <div class="np-card-lyrics-title">
@@ -371,7 +373,7 @@ html, body {
   <canvas id="pip-canvas" width="360" height="640"></canvas>
   <video id="pip-video" muted playsinline autoplay></video>
 </div>
-<script src="app.min.js?v=v75"></script>
+<script src="app.min.js?v=v76"></script>
 <script src="app-config.js?v=3"></script>
 </body>
 </html>

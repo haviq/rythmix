@@ -3947,6 +3947,13 @@ function toggleVideoMode() {
       }
     }
     try { moveWebVideo(Player.videoMode); } catch { }
+    if (typeof syncVideoRect === 'function') {
+      syncVideoRect();
+      setTimeout(syncVideoRect, 50);
+      setTimeout(syncVideoRect, 150);
+      setTimeout(syncVideoRect, 320);
+    }
+    setTimeout(() => { scrollActiveLyricIntoView(false); }, 80);
     // v3.7d: video TIDAK di-reload — iframe sudah memutar lagu ini di holder;
     // toggle ON/OFF murni overlay posisi → audio tak pernah putus.
     toast(Player.videoMode ? 'Mode video: ON' : 'Mode audio: ON');
@@ -4022,9 +4029,15 @@ window.__rmVideoToggle = function (on) {
   store.set('vid_mode', Player.videoMode);
   document.body.classList.toggle('show-video', !!on);
   try { if (!window.__nativeMode) moveWebVideo(!!on); } catch { }
-  requestAnimationFrame(syncVideoRect);
+  if (typeof syncVideoRect === 'function') {
+    requestAnimationFrame(syncVideoRect);
+    setTimeout(syncVideoRect, 50);
+    setTimeout(syncVideoRect, 150);
+    setTimeout(syncVideoRect, 320);
+  }
   renderMoreMenu && renderMoreMenu();
   renderModeButtons();
+  setTimeout(() => { scrollActiveLyricIntoView(false); }, 80);
 };
 // v1.7: video fallback via engine YT iframe fullscreen (NewPipe resolve kena PO-token block)
 window.__rmEngineVideoMode = function (on) {
@@ -4945,11 +4958,14 @@ function toggleNPFullscreen() {
     fsBtn.title = isFs ? 'Keluar Layar Penuh (Esc / F)' : 'Layar Penuh / Fullscreen (F)';
   }
 
-  // Auto scroll active lyric into center view
-  if (isFs && $('#np-lyrics') && $('#np-lyrics').classList.contains('active')) {
+  // Auto scroll active lyric into center view (both tab lyrics and side-by-side card lyrics)
+  if (isFs) {
+    setTimeout(() => {
+      scrollActiveLyricIntoView(false);
+    }, 120);
     setTimeout(() => {
       scrollActiveLyricIntoView(true);
-    }, 150);
+    }, 280);
   }
 
   if (typeof syncVideoRect === 'function') {
@@ -4992,6 +5008,17 @@ document.addEventListener('click', (e) => {
       toggleNPFullscreen();
     });
   });
+
+  // Precision layout tracker: ResizeObserver on #np-video guarantees #yt-holder overlay matches pixel-perfectly without lag
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (Player.videoMode && typeof syncVideoRect === 'function') {
+        syncVideoRect();
+      }
+    });
+    const npVidEl = document.getElementById('np-video');
+    if (npVidEl) ro.observe(npVidEl);
+  }
 
   // Fast orientation & resize sync for mobile / WebView
   window.addEventListener('resize', () => {
