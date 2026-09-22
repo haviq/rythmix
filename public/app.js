@@ -756,8 +756,12 @@ function startCurrent() {
       // maybeRetryLyrics re-fetches with the real duration once PLAYING. Waiting for
       // PLAYING before any fetch made lyrics lag the song by seconds.
       loadLyrics(s);
-      $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
-      $('#lyrics-source').textContent = '';
+      [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+        if (c) c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+      });
+      [...$$('#lyrics-source'), ...$$('#ytm-lyrics-source')].forEach(src => {
+        if (src) src.textContent = '';
+      });
       $('#np-lyric-preview').textContent = '';
       syncFloatLyric('');
     } else loadLyrics(s);
@@ -1075,7 +1079,9 @@ async function loadLyrics(song, { silent = false } = {}) {
     .find((x) => x && !looksLikePlays(x)) || '';
   const title = displayTitle(song.title) || song.title;
   if (!silent && !Player.lyrics.synced && !Player.lyrics.plain) {
-    $('#lyrics-container').innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+    [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+      if (c) c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+    });
   }
   try {
     let d;
@@ -1249,53 +1255,63 @@ function renderLyrics() {
   const saved = parseFloat(localStorage.getItem(lyOffKey())) || 0;
   if (!Player._lyricSyncKey && !localStorage.getItem(lyManKey())) Player.lyricOffset = saved;
   syncLyricOffsetUI();
-  const c = $('#lyrics-container');
-  const src = $('#lyrics-source');
   const L = Player.lyrics;
+  let html = '';
   if (L.lines.length) {
-    c.innerHTML = L.lines.map((l, i) => `<div class="lyric-line" data-i="${i}" data-t="${l.t}">${esc(l.text) || '♪'}</div>`).join('');
-    $$('.lyric-line', c).forEach((el) => el.addEventListener('click', () => { Player.yt.seekTo(lrcToAudio(parseFloat(el.dataset.t))); Player.yt.playVideo(); }));
+    html = L.lines.map((l, i) => `<div class="lyric-line" data-i="${i}" data-t="${l.t}">${esc(l.text) || '♪'}</div>`).join('');
   } else if (L.plain) {
-    c.innerHTML = `<div class="lyric-plain">${esc(L.plain)}</div>`;
+    html = `<div class="lyric-plain">${esc(L.plain)}</div>`;
   } else {
-    c.innerHTML = `<div class="lyrics-empty">No lyrics found for this track<br><br>
-      <button class="pill-btn" id="lyrics-retry">${icon('i-repeat')}<span>Try again</span></button>
-      <button class="pill-btn" id="lyrics-manual">${icon('i-search')}<span>Cari manual</span></button></div>`;
-    const rb = $('#lyrics-retry', c);
-    if (rb) rb.addEventListener('click', () => {
-      Player._lyricsRetried = false;
-      loadLyrics(Player.current);
-    });
-    // v2.2: cari manual — prompt judul+artis (cover/remake yg judul uploadnya beda total)
-    const mb = $('#lyrics-manual', c);
-    if (mb) mb.addEventListener('click', async () => {
-      const s = Player.current;
-      if (!s) return;
-      const q = prompt('Cari lirik sebagai (format: Judul - Artis):', `${s.title || ''} - ${s.artist || ''}`);
-      if (!q || !q.trim()) return;
-      const parts = q.split(/\s+-\s+/);
-      const t = (parts[0] || '').trim(), a = (parts.slice(1).join(' - ') || '').trim();
-      if (!t) return;
-      c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
-      try {
-        const d = await api(`/api/lyrics?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}&duration=${Player._lyricsDur || 0}`);
-        if (d && (d.synced || d.plain)) {
-          Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
-        } else {
-          Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
-          toast('Lirik tidak ketemu — coba kata kunci lain');
-        }
-      } catch { toast('Gagal mencari lirik'); }
-      renderLyrics();
-    });
+    html = `<div class="lyrics-empty">No lyrics found for this track<br><br>
+      <button class="pill-btn lyrics-retry">${icon('i-repeat')}<span>Try again</span></button>
+      <button class="pill-btn lyrics-manual">${icon('i-search')}<span>Cari manual</span></button></div>`;
   }
-  src.textContent = L.source ? `Lyrics provided by ${L.source}` : '';
+
+  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+    if (!c) return;
+    c.innerHTML = html;
+    if (L.lines.length) {
+      $$('.lyric-line', c).forEach((el) => el.addEventListener('click', () => { Player.yt.seekTo(lrcToAudio(parseFloat(el.dataset.t))); Player.yt.playVideo(); }));
+    } else if (!L.plain) {
+      const rb = $('.lyrics-retry', c);
+      if (rb) rb.addEventListener('click', () => {
+        Player._lyricsRetried = false;
+        loadLyrics(Player.current);
+      });
+      const mb = $('.lyrics-manual', c);
+      if (mb) mb.addEventListener('click', async () => {
+        const s = Player.current;
+        if (!s) return;
+        const q = prompt('Cari lirik sebagai (format: Judul - Artis):', `${s.title || ''} - ${s.artist || ''}`);
+        if (!q || !q.trim()) return;
+        const parts = q.split(/\\s+-\\s+/);
+        const t = (parts[0] || '').trim(), a = (parts.slice(1).join(' - ') || '').trim();
+        if (!t) return;
+        c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
+        try {
+          const d = await api(`/api/lyrics?title=${encodeURIComponent(t)}&artist=${encodeURIComponent(a)}&duration=${Player._lyricsDur || 0}`);
+          if (d && (d.synced || d.plain)) {
+            Player.lyrics = { synced: d.synced || null, plain: d.plain || null, source: d.source || 'Rythmix', lines: d.synced ? parseLRC(d.synced) : [] };
+          } else {
+            Player.lyrics = { synced: null, plain: null, source: null, lines: [] };
+            toast('Lirik tidak ketemu — coba kata kunci lain');
+          }
+        } catch { toast('Gagal mencari lirik'); }
+        renderLyrics();
+      });
+    }
+  });
+
+  [...$$('#lyrics-source'), ...$$('#ytm-lyrics-source')].forEach(src => {
+    if (src) src.textContent = L.source ? `Lyrics provided by ${L.source}` : '';
+  });
+
   lastLyricIdx = -1;
   if (L.lines.length) {
     $('#np-lyric-preview').textContent = '';
     syncFloatLyric('');
   } else if (L.plain) {
-    const first = String(L.plain).split('\n').map((x) => x.trim()).find(Boolean) || '';
+    const first = String(L.plain).split('\\n').map((x) => x.trim()).find(Boolean) || '';
     $('#np-lyric-preview').textContent = first;
     syncFloatLyric(first);
   } else {
@@ -1304,14 +1320,15 @@ function renderLyrics() {
   }
 }
 function scrollActiveLyricIntoView(smooth = true) {
-  const c = $('#lyrics-container');
-  if (!c) return;
-  const active = c.querySelector('.lyric-line.active');
-  if (!active) return;
-  const targetTop = active.offsetTop - (c.clientHeight / 2) + (active.clientHeight / 2);
-  c.scrollTo({
-    top: Math.max(0, targetTop),
-    behavior: smooth ? 'smooth' : 'auto'
+  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+    if (!c) return;
+    const active = c.querySelector('.lyric-line.active');
+    if (!active) return;
+    const targetTop = active.offsetTop - (c.clientHeight / 2) + (active.clientHeight / 2);
+    c.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: smooth ? 'smooth' : 'auto'
+    });
   });
 }
 
@@ -1321,16 +1338,20 @@ function updateLyricHighlight(cur) {
   if (!L.lines.length) return;
   // v4.2: lirik tak terlihat (NP tutup / tab bukan lyrics) ? jangan sentuh DOM tiap 100ms
   // (scrollIntoView = forced reflow; Lighthouse "Forced reflow")
-  const lyricsVisible = $('#np-lyrics') && $('#np-lyrics').classList.contains('active');
+  const npLyricsVisible = $('#np-lyrics') && $('#np-lyrics').classList.contains('active');
+  const ytmLyricsVisible = $('#ytm-lyrics-container') && $('#ytm-lyrics-container').closest('.ytm-section') && !$('#ytm-lyrics-container').closest('.ytm-section').classList.contains('hidden') && location.hash === '#/ytm';
+  const lyricsVisible = npLyricsVisible || ytmLyricsVisible;
   if (!lyricsVisible && !Player.floatOn) { $('#np-lyric-preview').textContent = ''; return; }
   let idx = -1;
   for (let i = 0; i < L.lines.length; i++) { if (cur >= lrcToAudio(L.lines[i].t) - 0.2) idx = i; else break; }
   if (idx === lastLyricIdx) return;
   lastLyricIdx = idx;
-  const c = $('#lyrics-container');
-  $$('.lyric-line', c).forEach((el, i) => {
-    el.classList.toggle('active', i === idx);
-    el.classList.toggle('past', i < idx);
+  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+    if (!c) return;
+    $$('.lyric-line', c).forEach((el, i) => {
+      el.classList.toggle('active', i === idx);
+      el.classList.toggle('past', i < idx);
+    });
   });
   if (lyricsVisible) scrollActiveLyricIntoView(true);
   const line = idx >= 0 ? L.lines[idx].text : '';
@@ -2704,6 +2725,19 @@ async function viewYTM(view) {
       <!-- Shelves Container (Explore / Moods / Trending) -->
       <section id="ytm-web-shelves" class="ytm-shelves-container">
         ${allSections.length ? allSections.map(shelfHTML).join('') : skeletonHTML}
+      </section>
+
+      <!-- Lyrics under YTM -->
+      <section id="ytm-lyrics-section" class="ytm-section">
+        <div class="ytm-section-header" style="margin-bottom: 24px; text-align: center; justify-content: center; width: 100%;">
+          <div class="ytm-section-title-row" style="justify-content: center;">
+            <h2 class="ytm-section-title">Lirik Lagu</h2>
+          </div>
+        </div>
+        <div id="ytm-lyrics-container" class="ytm-lyrics-display">
+          <div class="lyrics-empty">Belum ada lirik yang dimuat</div>
+        </div>
+        <div id="ytm-lyrics-source" class="ytm-lyrics-source"></div>
       </section>
     </div>
   `;
