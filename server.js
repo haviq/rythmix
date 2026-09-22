@@ -655,6 +655,10 @@ app.get('/api/resolve', async (req, res) => {
     const list = u.searchParams.get('list');
     const v = u.searchParams.get('v');
     const m = u.pathname.match(/\/(playlist|channel|browse|watch)\/?([^/]*)?/);
+    if (u.hostname.includes('youtu.be')) {
+      const vid = u.pathname.slice(1).split('/')[0].split('?')[0];
+      if (vid) return res.json({ kind: 'song', videoId: vid, playlistId: list || null });
+    }
     if (list && !v) return res.json({ kind: 'playlist', id: list });
     if (v) return res.json({ kind: 'song', videoId: v, playlistId: list || null });
     if (m && m[1] === 'channel' && m[2]) return res.json({ kind: 'artist', id: m[2] });
