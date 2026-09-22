@@ -2593,114 +2593,163 @@ function viewSettings(view) {
     viewSettings(view); syncNpMore();
   }));
 }
-/* ---- YT Music: Full Interactive In-App Experience ---- */
-async function viewYTM(view) {
-  // Read local cache for instantaneous rendering
-  let cachedData = null;
-  try {
-    const raw = localStorage.getItem('rm_ytm_explore_cache');
-    if (raw) cachedData = JSON.parse(raw);
-  } catch (e) {}
+/* ---- YT Music: Authentic YouTube Music Web Experience ---- */
+const YTM_MOODS = [
+  { id: 'all', label: 'Semua' },
+  { id: 'santai', label: 'Santai', params: 'ggMPOg1uX1JOQWZFeDByc2Jm' },
+  { id: 'semangat', label: 'Semangat', params: 'ggMPOg1uX2lRZUZiMnNrQnJW' },
+  { id: 'fokus', label: 'Fokus', params: 'ggMPOg1uX0NvNGNhWThMYWRh' },
+  { id: 'olahraga', label: 'Berolahraga', params: 'ggMPOg1uXzIxYkNac21YZ2Z0' },
+  { id: 'bepergian', label: 'Perjalanan', params: 'ggMPOg1uX044Z2o5WERLckpU' },
+  { id: 'pesta', label: 'Pesta', params: 'ggMPOg1uXzZIekI0NHRnUXFH' },
+  { id: 'romantis', label: 'Romantis', params: 'ggMPOg1uX1JCQnB2QXVYVEIz' },
+  { id: 'tidur', label: 'Tidur', params: 'ggMPOg1uX1MxaFQ3Z0JMZkN4' },
+];
 
-  let allSections = (cachedData && cachedData.sections) || [];
-
-  view.innerHTML = `
-    <div class="ytm-hub">
-      <div class="ytm-hero-card">
-        <div class="ytm-hero-topline">
-          <div class="ytm-badge-pill">
-            <svg class="ytm-icon-brand" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="12" fill="#ff0000"/>
-              <circle cx="12" cy="12" r="7" fill="#0f0f11"/>
-              <polygon points="10,8 16,12 10,16" fill="#ffffff"/>
-            </svg>
-            <span class="ytm-live-dot"></span>
-            <span>YouTube Music Online</span>
-          </div>
-          <a href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" class="ytm-ext-link">
-            <span>Buka Web Resmi ↗</span>
-          </a>
-        </div>
-
-        <h1 class="ytm-title">YouTube Music Eksplorasi</h1>
-        <p class="ytm-desc">
-          Katalog resmi YouTube Music aktif langsung di Rythmix. Nikmati pemutaran audio bebas iklan, video resolusi tinggi, lirik tersinkronisasi, serta pemutaran latar belakang.
-        </p>
-
-        <!-- Universal Search & Link Resolver -->
-        <form class="ytm-search-form" id="ytm-explore-form">
-          <div class="ytm-input-wrap">
-            <svg class="ic"><use href="#i-search"/></svg>
-            <input type="text" id="ytm-query-input" placeholder="Cari lagu, artis, playlist di YouTube Music atau tempel link..." autocomplete="off" />
-            <button type="button" id="ytm-clear-btn" class="hidden" title="Hapus">
-              <svg class="ic"><use href="#i-x"/></svg>
-            </button>
-          </div>
-          <button type="submit" class="pill-btn primary" id="ytm-submit-btn">
-            <svg class="ic"><use href="#i-play"/></svg>
-            <span>Cari / Putar</span>
-          </button>
-        </form>
+function ytmQuickPickRowHTML(item) {
+  const t = esc(item.title || '');
+  const s = esc(item.subtitle || item.artist || '');
+  const art = item.thumbnail ? `<img src="${esc(item.thumbnail)}" alt="" loading="lazy">` : '';
+  const itemData = esc(JSON.stringify(item));
+  return `
+    <div class="ytm-qp-row track" data-item="${itemData}">
+      <div class="ytm-qp-art">
+        ${art}
+        <div class="ytm-qp-play-btn">${icon('i-play')}</div>
       </div>
-
-      <!-- Live Search Results Container -->
-      <div id="ytm-search-results" class="hidden"></div>
-
-      <!-- Quick Filter Pills -->
-      <div class="ytm-filter-bar">
-        <button class="ytm-pill-chip active" data-tab="all">Semua</button>
-        <button class="ytm-pill-chip" data-tab="trending">Trending</button>
-        <button class="ytm-pill-chip" data-tab="new">Rilisan Terbaru</button>
-        <button class="ytm-pill-chip" data-tab="videos">Video Musik</button>
-        <button class="ytm-pill-chip" data-tab="artists">Artis Teratas</button>
+      <div class="ytm-qp-meta">
+        <div class="ytm-qp-title" title="${t}">${t}</div>
+        <div class="ytm-qp-sub" title="${s}">${s}</div>
       </div>
-
-      <!-- Live Shelves Container -->
-      <div id="ytm-shelves">
-        ${allSections.length ? '' : skeletonHTML}
+      <div class="ytm-qp-actions">
+        <button type="button" class="icon-btn sm tbtn" data-act="like" title="Suka">${icon('i-heart-o')}</button>
       </div>
     </div>
   `;
+}
 
-  // Bind Header & Search elements
-  const input = $('#ytm-query-input', view);
-  const clearBtn = $('#ytm-clear-btn', view);
-  const form = $('#ytm-explore-form', view);
-  const submitBtn = $('#ytm-submit-btn', view);
-  const resultsSlot = $('#ytm-search-results', view);
-  const shelvesSlot = $('#ytm-shelves', view);
-  const chips = $$('.ytm-pill-chip', view);
+async function viewYTM(view) {
+  let cachedData = null;
+  try {
+    const raw = localStorage.getItem('rm_ytm_web_cache');
+    if (raw) cachedData = JSON.parse(raw);
+  } catch (e) {}
 
-  if (input && clearBtn) {
-    input.addEventListener('input', () => {
-      clearBtn.classList.toggle('hidden', !input.value);
+  let quickPicks = (cachedData && cachedData.quickPicks) || [];
+  let allSections = (cachedData && cachedData.sections) || [];
+
+  view.innerHTML = `
+    <div class="ytm-web-wrapper">
+      <!-- Authentic YouTube Music Top Bar -->
+      <header class="ytm-web-header">
+        <div class="ytm-web-bar">
+          <div class="ytm-web-left">
+            <div class="ytm-web-brand">
+              <svg class="ytm-web-logo-icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="12" fill="#ff0000"/>
+                <circle cx="12" cy="12" r="7" fill="#030303"/>
+                <polygon points="10,8 16,12 10,16" fill="#ffffff"/>
+              </svg>
+              <div class="ytm-web-brand-text">
+                <span class="ytm-brand-yt">YouTube</span>
+                <span class="ytm-brand-mu">Music</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- YouTube Music Search & URL input -->
+          <form class="ytm-web-search-form" id="ytm-web-search">
+            <svg class="ic ytm-search-ic"><use href="#i-search"/></svg>
+            <input type="text" id="ytm-web-search-input" placeholder="Telusuri lagu, album, artis, podcast atau tempel tautan..." autocomplete="off" spellcheck="false" />
+            <button type="button" id="ytm-web-search-clear" class="hidden" title="Hapus"><svg class="ic"><use href="#i-x"/></svg></button>
+            <button type="submit" class="ytm-web-search-submit" id="ytm-web-search-submit" title="Cari / Putar">
+              <svg class="ic"><use href="#i-play"/></svg>
+            </button>
+          </form>
+
+          <div class="ytm-web-right">
+            <a href="https://music.youtube.com/" target="_blank" rel="noopener noreferrer" class="ytm-web-ext-btn" title="Buka YouTube Music resmi di tab baru">
+              <svg class="ic"><use href="#i-share"/></svg>
+              <span>Web Resmi ↗</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- YouTube Music Mood / Category Chips Row -->
+        <nav class="ytm-chips-bar" id="ytm-chips-bar">
+          ${YTM_MOODS.map((m) => `<button type="button" class="ytm-chip ${m.id === 'all' ? 'active' : ''}" data-mood="${m.id}" data-params="${m.params || ''}">${m.label}</button>`).join('')}
+        </nav>
+      </header>
+
+      <!-- In-Page Search Results Container (fills when searched) -->
+      <section id="ytm-web-search-results" class="hidden"></section>
+
+      <!-- Quick Picks (Pilihan Cepat) - 4-Row Grid -->
+      <section id="ytm-qp-section" class="ytm-section ${quickPicks.length ? '' : 'hidden'}">
+        <div class="ytm-section-header">
+          <div class="ytm-section-pretitle">MULAI RADIO DARI LAGU</div>
+          <div class="ytm-section-title-row">
+            <h2 class="ytm-section-title">Pilihan Cepat</h2>
+            <button type="button" class="pill-btn sm" id="ytm-qp-playall">
+              <svg class="ic"><use href="#i-play"/></svg>
+              <span>Putar Semua</span>
+            </button>
+          </div>
+        </div>
+        <div class="ytm-qp-grid" id="ytm-qp-grid">
+          ${quickPicks.map(ytmQuickPickRowHTML).join('')}
+        </div>
+      </section>
+
+      <!-- Shelves Container (Explore / Moods / Trending) -->
+      <section id="ytm-web-shelves" class="ytm-shelves-container">
+        ${allSections.length ? allSections.map(shelfHTML).join('') : skeletonHTML}
+      </section>
+    </div>
+  `;
+
+  // Bind Search events
+  const searchForm = $('#ytm-web-search', view);
+  const searchInput = $('#ytm-web-search-input', view);
+  const searchClear = $('#ytm-web-search-clear', view);
+  const searchSubmit = $('#ytm-web-search-submit', view);
+  const searchResults = $('#ytm-web-search-results', view);
+  const qpSection = $('#ytm-qp-section', view);
+  const qpGrid = $('#ytm-qp-grid', view);
+  const qpPlayAll = $('#ytm-qp-playall', view);
+  const shelvesSlot = $('#ytm-web-shelves', view);
+  const chips = $$('.ytm-chip', view);
+
+  if (searchInput && searchClear) {
+    searchInput.addEventListener('input', () => {
+      searchClear.classList.toggle('hidden', !searchInput.value);
     });
-    clearBtn.addEventListener('click', () => {
-      input.value = '';
-      clearBtn.classList.add('hidden');
-      if (resultsSlot) { resultsSlot.classList.add('hidden'); resultsSlot.innerHTML = ''; }
-      input.focus();
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      searchClear.classList.add('hidden');
+      if (searchResults) { searchResults.classList.add('hidden'); searchResults.innerHTML = ''; }
+      searchInput.focus();
     });
   }
 
-  if (form) {
-    form.addEventListener('submit', async (e) => {
+  if (searchForm) {
+    searchForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const q = (input && input.value || '').trim();
+      const q = (searchInput && searchInput.value || '').trim();
       if (!q) {
-        if (input) {
-          input.focus();
-          input.classList.add('shake');
-          setTimeout(() => input.classList.remove('shake'), 400);
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.classList.add('shake');
+          setTimeout(() => searchInput.classList.remove('shake'), 400);
         }
         return;
       }
 
-      // Check if it is a URL
+      // Check if URL
       if (/^https?:\/\//i.test(q) || /youtu\.be/i.test(q) || /music\.youtube\.com/i.test(q)) {
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `${icon('i-download')}<span>Memproses...</span>`;
+        if (searchSubmit) {
+          searchSubmit.disabled = true;
+          searchSubmit.innerHTML = `${icon('i-download')}`;
         }
         toast('Memproses link YouTube Music…');
         try {
@@ -2708,98 +2757,127 @@ async function viewYTM(view) {
         } catch (err) {
           toast('Gagal memproses tautan: ' + (err.message || 'Coba lagi'));
         } finally {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = `${icon('i-play')}<span>Cari / Putar</span>`;
+          if (searchSubmit) {
+            searchSubmit.disabled = false;
+            searchSubmit.innerHTML = `${icon('i-play')}`;
           }
         }
         return;
       }
 
-      // Search query -> perform in-page search
-      if (resultsSlot) {
-        resultsSlot.classList.remove('hidden');
-        resultsSlot.innerHTML = `<div class="shelf-title">Hasil Pencarian: "${esc(q)}"</div><div class="loading-note">Mencari di YouTube Music…</div>`;
-        resultsSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Search query
+      if (searchResults) {
+        searchResults.classList.remove('hidden');
+        searchResults.innerHTML = `<div class="shelf-title">Hasil Pencarian di YouTube Music: "${esc(q)}"</div><div class="loading-note">Mencari…</div>`;
+        searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `${icon('i-search')}<span>Mencari...</span>`;
+      if (searchSubmit) {
+        searchSubmit.disabled = true;
+        searchSubmit.innerHTML = `${icon('i-search')}`;
       }
 
       try {
         const d = await api('/api/search?q=' + encodeURIComponent(q));
-        if (resultsSlot) {
-          resultsSlot.innerHTML = `<div class="shelf-title">Hasil Pencarian: "${esc(q)}"</div>` + searchResultsHTML(d.sections || []);
-          bindItems(resultsSlot);
-          bindCarousels(resultsSlot);
+        if (searchResults) {
+          searchResults.innerHTML = `<div class="shelf-title">Hasil Pencarian di YouTube Music: "${esc(q)}"</div>` + searchResultsHTML(d.sections || []);
+          bindItems(searchResults);
+          bindCarousels(searchResults);
         }
       } catch (err) {
-        if (resultsSlot) resultsSlot.innerHTML = `<div class="error-note">Gagal memuat hasil pencarian: ${esc(err.message)}</div>`;
+        if (searchResults) searchResults.innerHTML = `<div class="error-note">Gagal memuat hasil pencarian: ${esc(err.message)}</div>`;
       } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = `${icon('i-play')}<span>Cari / Putar</span>`;
+        if (searchSubmit) {
+          searchSubmit.disabled = false;
+          searchSubmit.innerHTML = `${icon('i-play')}`;
         }
       }
     });
   }
 
-  // Section filtering & rendering
-  const renderSections = (filter = 'all') => {
-    if (!shelvesSlot) return;
-    let filtered = allSections;
-    if (filter === 'trending') {
-      filtered = allSections.filter((s) => /trending|populer|top/i.test(s.title || ''));
-    } else if (filter === 'new') {
-      filtered = allSections.filter((s) => /baru|new|release/i.test(s.title || ''));
-    } else if (filter === 'videos') {
-      filtered = allSections.filter((s) => /video|klip/i.test(s.title || ''));
-    } else if (filter === 'artists') {
-      filtered = allSections.filter((s) => /artis|artist/i.test(s.title || ''));
-    }
-    if (!filtered.length) filtered = allSections;
+  // Bind Quick Picks interactions
+  if (qpGrid) {
+    bindItems(qpGrid);
+  }
+  if (qpPlayAll) {
+    qpPlayAll.addEventListener('click', () => {
+      if (quickPicks.length) {
+        const songs = quickPicks.map(songFromItem).filter((s) => s && s.videoId);
+        if (songs.length) playSong(songs[0], songs, 0);
+      }
+    });
+  }
 
-    shelvesSlot.innerHTML = filtered.map(shelfHTML).join('');
+  if (shelvesSlot) {
     bindItems(shelvesSlot);
     bindCarousels(shelvesSlot);
-  };
-
-  if (allSections.length) {
-    renderSections('all');
   }
 
   // Fetch live explore data from /api/explore
   try {
     const d = await api('/api/explore');
-    if (d && d.sections && d.sections.length) {
-      allSections = d.sections;
+    if (d) {
+      if (d.quickPicks && d.quickPicks.length) {
+        quickPicks = d.quickPicks;
+        if (qpGrid) {
+          qpGrid.innerHTML = quickPicks.map(ytmQuickPickRowHTML).join('');
+          bindItems(qpGrid);
+        }
+        if (qpSection) qpSection.classList.remove('hidden');
+      }
+      if (d.sections && d.sections.length) {
+        allSections = d.sections;
+        if (shelvesSlot) {
+          shelvesSlot.innerHTML = allSections.map(shelfHTML).join('');
+          bindItems(shelvesSlot);
+          bindCarousels(shelvesSlot);
+        }
+      }
       try {
-        localStorage.setItem('rm_ytm_explore_cache', JSON.stringify({ sections: allSections, t: Date.now() }));
+        localStorage.setItem('rm_ytm_web_cache', JSON.stringify({ quickPicks, sections: allSections, t: Date.now() }));
       } catch (e) {}
-      const activeChip = $('.ytm-pill-chip.active', view);
-      renderSections(activeChip ? activeChip.dataset.tab : 'all');
     }
   } catch (e) {
-    if (!allSections.length) {
-      try {
-        const c = await api('/api/charts');
-        if (c && c.sections && c.sections.length) {
-          allSections = c.sections;
-          renderSections('all');
-        }
-      } catch (err2) {
-        if (shelvesSlot) shelvesSlot.innerHTML = emptyHTML('Katalog YouTube Music', 'Gagal memuat konten. Periksa jaringan Anda.', { label: 'Muat Ulang', go: '#/ytm', ic: 'i-chart' });
-      }
-    }
+    console.warn('Explore fetch failed, using cache/fallback', e);
   }
 
-  // Filter chips click handling
+  // Mood Chips handling
   chips.forEach((chip) => {
-    chip.addEventListener('click', () => {
+    chip.addEventListener('click', async () => {
       chips.forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
-      renderSections(chip.dataset.tab);
+      const moodId = chip.dataset.mood;
+      const params = chip.dataset.params;
+
+      if (moodId === 'all') {
+        if (qpSection) qpSection.classList.toggle('hidden', !quickPicks.length);
+        if (shelvesSlot) {
+          shelvesSlot.innerHTML = allSections.map(shelfHTML).join('');
+          bindItems(shelvesSlot);
+          bindCarousels(shelvesSlot);
+        }
+        return;
+      }
+
+      // Hide Quick Picks when filtering a specific mood
+      if (qpSection) qpSection.classList.add('hidden');
+      if (shelvesSlot) {
+        shelvesSlot.innerHTML = `<div class="loading-note">Memuat koleksi ${esc(chip.textContent)} YouTube Music…</div>`;
+      }
+
+      try {
+        const d = await api(`/api/browse?id=FEmusic_moods_and_genres_category&params=${encodeURIComponent(params)}`);
+        const secs = d.sections || [];
+        if (shelvesSlot) {
+          if (secs.length) {
+            shelvesSlot.innerHTML = secs.map(shelfHTML).join('');
+            bindItems(shelvesSlot);
+            bindCarousels(shelvesSlot);
+          } else {
+            shelvesSlot.innerHTML = emptyHTML(`Koleksi ${chip.textContent}`, 'Tidak ada playlist yang ditemukan.', { ic: 'i-radio' });
+          }
+        }
+      } catch (err) {
+      }
     });
   });
 }

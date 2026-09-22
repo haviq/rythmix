@@ -225,11 +225,29 @@ function cached(key, ttlMs, fn) {
 
 app.get('/api/explore', async (req, res) => {
   try {
-    const data = await cached('ytm_explore', 15 * 60 * 1000, async () => {
+    const data = await cached('ytm_explore_v2', 15 * 60 * 1000, async () => {
       const p1 = browsePage('FEmusic_explore').catch(() => ({ sections: [] }));
       const p2 = yt('browse', { browseId: 'FEmusic_charts' }).catch(() => null);
-      const [exp, cRaw] = await Promise.all([p1, p2]);
+      const p3 = yt('browse', { browseId: 'FEmusic_home' }).catch(() => null);
+      const [exp, cRaw, hRaw] = await Promise.all([p1, p2, p3]);
+
+      let quickPicks = [];
+      let communityPlaylists = null;
+      if (hRaw) {
+        const slHome = findFirst(hRaw, 'sectionListRenderer');
+        if (slHome) {
+          const hSecs = parseSections(slHome.contents);
+          const qp = hSecs.find((s) => /pilihan|quick/i.test(s.title || ''));
+          if (qp && qp.items) quickPicks = qp.items;
+          const comm = hSecs.find((s) => /komunitas|community/i.test(s.title || ''));
+          if (comm && comm.items) communityPlaylists = comm;
+        }
+      }
+
       let sections = exp.sections || [];
+      if (communityPlaylists && communityPlaylists.items) {
+        sections.push(communityPlaylists);
+      }
       if (cRaw) {
         const sl = findFirst(cRaw, 'sectionListRenderer');
         if (sl) {
@@ -237,7 +255,13 @@ app.get('/api/explore', async (req, res) => {
           sections = sections.concat(cSecs);
         }
       }
-      return { sections };
+
+      if (!quickPicks.length && sections.length) {
+        const trend = sections.find((s) => /trending|populer/i.test(s.title || ''));
+        if (trend && trend.items) quickPicks = trend.items.slice(0, 16);
+      }
+
+      return { quickPicks, sections };
     });
     res.json(data);
   } catch (e) {
