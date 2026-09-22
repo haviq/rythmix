@@ -829,7 +829,7 @@ html[data-theme="light"] .tb-btn {
 }
 
 #view.view-enter {
-  /* v3.9: tanpa fade tiap navigasi — instan terasa native */
+  /* v3.9: tanpa fade tiap navigasi  instan terasa native */
 }
 
 .page-title {
@@ -1238,7 +1238,7 @@ html[data-theme="light"] .art-ph {
   transition: transform 0.45s ease;
 }
 
-/* hover: tak zoom — cukup play-ov muncul (v3.9) */
+/* hover: tak zoom  cukup play-ov muncul (v3.9) */
 
 .card .art .play-ov {
   position: absolute;
@@ -2593,7 +2593,7 @@ body:not(.paused) .np-art-wrap {
 #lyrics-container {
   flex: 1;
   overflow-y: auto;
-  /* v4.3b: 28vh mendorong konten keluar frame & menimpa judul — clamp ketat */
+  /* v4.3b: 28vh mendorong konten keluar frame & menimpa judul  clamp ketat */
   padding: min(12vh, 110px) 16px;
   scroll-behavior: smooth;
 }
@@ -3548,7 +3548,7 @@ body.hq-audio #yt-player {
 
 body.show-video #np-player.active #np-video {
   display: block;
-  /* v4.3: landscape 16:9 — bukan kotak. Lebar penuh area art, tinggi ikut rasio,
+  /* v4.3: landscape 16:9  bukan kotak. Lebar penuh area art, tinggi ikut rasio,
      rata atas; native & web sama-sama mengikuti rect elemen ini. */
   inset: auto 0 auto 0;
   top: 0;
@@ -3564,7 +3564,7 @@ body.show-video #np-player.active #np-video {
   z-index: 63;
 }
 
-/* v4.3: wrap ikut landscape saat video — tak ada ruang kotak kosong di bawah */
+/* v4.3: wrap ikut landscape saat video  tak ada ruang kotak kosong di bawah */
 body.show-video #np-player.active {
   justify-content: flex-start !important;
   gap: 12px !important;
@@ -3688,9 +3688,9 @@ body.np-fullscreen #yt-holder.video-pos,
 }
 
 /* Laptop overlay (sidebar on, NP still fullscreen): don't leave a tiny floating cover */
-/* v4.3c: blok perantara dihapus — sidebar berlaku dari 861px */
+/* v4.3c: blok perantara dihapus  sidebar berlaku dari 861px */
 
-/* Desktop: Now Playing as right sidebar (Spotify 2024) — v4.3c: dari 861px */
+/* Desktop: Now Playing as right sidebar (Spotify 2024)  v4.3c: dari 861px */
 @media (min-width: 861px) {
   #nowplaying:not(.hidden) {
     position: relative;
@@ -3903,7 +3903,7 @@ body.np-fullscreen #yt-holder.video-pos,
     position: fixed;
     top: 12px;
     left: 12px;
-    z-index: 91; /* v4.1c: di atas drawer (90) — tetap terklik saat drawer terbuka */
+    z-index: 91; /* v4.1c: di atas drawer (90)  tetap terklik saat drawer terbuka */
     width: 48px;
     height: 48px;
     align-items: center;
@@ -4438,7 +4438,7 @@ html[data-theme="light"] .modal-card .pl-form-input {
   }
 }
 
-/* ---------- v4.3c: fullscreen sheet HANYA mobile (<=860px) — dulu min-1100 =
+/* ---------- v4.3c: fullscreen sheet HANYA mobile (<=860px)  dulu min-1100 =
    menimpa sidebar desktop di SEMUA ukuran (layering ketumpuk di 861-1099) ---------- */
 @media (max-width: 860px) {
   #nowplaying {
@@ -5494,9 +5494,11 @@ body.rm-loading #mini-play::after {
 
 /* ---------- Desktop Fullscreen Mode for Now Playing (UI Pro Max) ---------- */
 /* ---------- Fullscreen Mode for Now Playing (UI Pro Max - Apple HIG Dead-Center Precision) ---------- */
-/* Hide miniplayer completely in fullscreen */
+/* Hide miniplayer & mobile bottom nav completely in fullscreen */
 body.np-fullscreen #miniplayer,
-#nowplaying.fullscreen ~ #miniplayer {
+body.np-fullscreen #nav-mobile,
+#nowplaying.fullscreen ~ #miniplayer,
+#nowplaying.fullscreen ~ #nav-mobile {
   display: none !important;
 }
 
@@ -6085,5 +6087,185 @@ body.np-fullscreen #miniplayer,
   }
   #nowplaying.fullscreen .np-body {
     top: 96px !important;
+  }
+}
+
+
+/* Dedicated floating Fullscreen button on Video */
+.np-video-fs-btn {
+  display: none;
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  align-items: center;
+  justify-content: center;
+  z-index: 125;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  pointer-events: auto;
+}
+
+body.show-video #np-video .np-video-fs-btn,
+body.show-video #yt-holder.video-pos .np-video-fs-btn {
+  display: flex !important;
+}
+
+#yt-holder .np-video-fs-btn {
+  pointer-events: auto !important;
+  z-index: 25 !important;
+}
+
+.np-video-fs-btn:hover {
+  transform: scale(1.1);
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.np-video-fs-btn .ic {
+  width: 18px;
+  height: 18px;
+}
+
+/* Mobile & WebView Fullscreen Theater Mode (covers all phones, tablets, foldables up to 860px) */
+@media (max-width: 860px) {
+  #nowplaying.fullscreen {
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body.show-video #nowplaying.fullscreen .np-body {
+    top: 72px !important;
+    bottom: 8px !important;
+    padding: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active {
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: 8px !important;
+    padding: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-art-wrap {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    aspect-ratio: 16 / 9 !important;
+    max-height: 48vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8) !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active #np-video,
+  body.np-fullscreen #yt-holder.video-pos,
+  #nowplaying.fullscreen ~ #yt-holder.video-pos {
+    border-radius: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-meta {
+    max-width: 92vw !important;
+    padding: 0 16px !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-seek {
+    max-width: 92vw !important;
+    padding: 0 16px !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-controls {
+    padding: 0 16px !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-actions {
+    padding: 0 12px !important;
+  }
+
+  #nowplaying.fullscreen #np-lyrics.active {
+    padding: 72px 16px 24px !important;
+  }
+}
+
+/* Mobile Landscape Pure Cinema Mode */
+@media (orientation: landscape) and (max-height: 520px) {
+  #nowplaying.fullscreen .np-topbar {
+    top: 8px !important;
+    left: 14px !important;
+    right: 14px !important;
+    opacity: 0.65;
+    transition: opacity 0.3s ease;
+  }
+
+  #nowplaying.fullscreen .np-topbar:hover,
+  #nowplaying.fullscreen:hover .np-topbar {
+    opacity: 1;
+  }
+
+  #nowplaying.fullscreen .np-tabs,
+  #nowplaying.fullscreen .np-mode-row {
+    display: none !important;
+  }
+
+  #nowplaying.fullscreen .np-body {
+    top: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    padding: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-art-wrap {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    aspect-ratio: auto !important;
+    border-radius: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active #np-video {
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+
+  body.np-fullscreen #yt-holder.video-pos,
+  #nowplaying.fullscreen ~ #yt-holder.video-pos {
+    border-radius: 0 !important;
+  }
+
+  body.show-video #nowplaying.fullscreen #np-player.active .np-meta,
+  body.show-video #nowplaying.fullscreen #np-player.active .np-seek,
+  body.show-video #nowplaying.fullscreen #np-player.active .np-controls,
+  body.show-video #nowplaying.fullscreen #np-player.active .np-actions {
+    display: none !important;
   }
 }

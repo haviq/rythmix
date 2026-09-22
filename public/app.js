@@ -325,10 +325,10 @@ window.onYouTubeIframeAPIReady = () => {
           } catch { }
           if (vidOk) {
             Player._switching = false;
-            // v4.6: loading state selesai — judul & tombol kembali normal
+            // v4.6: loading state selesai  judul & tombol kembali normal
             document.body.classList.remove('rm-loading');
             window.dispatchEvent(new Event('rm-play-start'));
-            // v4.6: panaskan 2 lagu berikutnya di queue — next/autoplay instan (native)
+            // v4.6: panaskan 2 lagu berikutnya di queue  next/autoplay instan (native)
             try {
               if (window.__nativeMode && window.RichMusicBridge && window.RichMusicBridge.prewarm && Player.queue) {
                 Player.queue.slice(Player.index + 1, Player.index + 3).forEach((q) => {
@@ -496,7 +496,7 @@ if (window.RichMusicBridge && !/web/.test((location.search.match(/mode=([^&]+)/)
       var s = window.Player && window.Player.current;
       if (!s || s.videoId !== videoId) return;
 
-      toast('Memutar via mode web darurat…');
+      toast('Memutar via mode web darurat');
 
       // Matikan ExoPlayer sepenuhnya supaya tidak bentrok
       try { window.RichMusicBridge.stop(); } catch (e) { }
@@ -691,11 +691,11 @@ function startCurrent() {
       // â†’ playUrl restart lagu dari 0 saat resolve pertama selesai.
       window.__rmPlaying = false;
       clearTimeout(window.__rmWatchdog);
-      // v4.6: loading state — judul miniplayer + NP jadi "Memuat…" sampai PLAYING,
+      // v4.6: loading state  judul miniplayer + NP jadi "Memuat" sampai PLAYING,
       // play button spinner. Persepsi delay turun drastis.
       document.body.classList.add('rm-loading');
       const pendingTitle = displayTitle(s.title) || s.title || '';
-      try { $('#mini-title').textContent = 'Memuat ' + pendingTitle + '…'; } catch (e) { }
+      try { $('#mini-title').textContent = 'Memuat ' + pendingTitle + ''; } catch (e) { }
       const onDoneLoading = () => {
         document.body.classList.remove('rm-loading');
         try { renderNowPlaying(); } catch (e) { }
@@ -2081,7 +2081,7 @@ async function route() {
   revealScan(view);
 }
 
-/* v4.0: fade-in bertahap — blok konten muncul saat masuk viewport, stagger 45ms
+/* v4.0: fade-in bertahap  blok konten muncul saat masuk viewport, stagger 45ms
    per baris. IntersectionObserver, bukan animasi CSS ke semua elemen: yang di
    luar layar tak dianimasikan sama sekali (hemat, tak bikin scroll janky). */
 let revealObs = null;
@@ -2110,7 +2110,7 @@ function revealScan(root) {
     revealObs.observe(el);
   });
   // jaring pengaman: kalau observer tak pernah trigger (parent sempat hidden,
-  // tab background, dll) konten tetap muncul setelah 1.2s — jangan sampai blank.
+  // tab background, dll) konten tetap muncul setelah 1.2s  jangan sampai blank.
   clearTimeout(window.__rvSafety);
   window.__rvSafety = setTimeout(() => {
     targets.forEach((el) => el.classList.add('rv-in'));
@@ -2249,7 +2249,7 @@ async function loadMixForYou() {
   if (!seeds.length) return;
   const slot = $('#mix-slot');
   if (!slot) return;
-  // v4.2: tunda sampai slot dekat viewport — tanpa layout shift (slot kosong
+  // v4.2: tunda sampai slot dekat viewport  tanpa layout shift (slot kosong
   // diberi min-height) & gambar mix tidak bersaing dengan konten atas.
   if (!slot._mixWatch) {
     slot._mixWatch = 1;
@@ -4525,6 +4525,20 @@ function toggleNPFullscreen() {
   if (fsIc) {
     fsIc.setAttribute('href', isFs ? '#i-compress' : '#i-expand');
   }
+  $$('.np-video-fs-btn use').forEach(u => {
+    u.setAttribute('href', isFs ? '#i-compress' : '#i-expand');
+  });
+
+  // Mobile video orientation auto-lock when available
+  if (Player.videoMode && screen.orientation) {
+    try {
+      if (isFs && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      } else if (!isFs && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    } catch {}
+  }
 
   const fsBtn = $('#np-fullscreen');
   if (fsBtn) {
@@ -4547,15 +4561,51 @@ function toggleNPFullscreen() {
   }
 }
 
-// Event delegation guarantees click/touch always fires on any device
+// Event delegation guarantees click/touch always fires on any device & WebView
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('#np-fullscreen');
+  const btn = e.target.closest('#np-fullscreen, .np-video-fs-btn');
   if (btn) {
     e.preventDefault();
     e.stopPropagation();
     toggleNPFullscreen();
   }
 });
+
+// Double-tap or double-click on video to toggle fullscreen + responsive sync
+(function() {
+  ['#np-video', '#yt-holder'].forEach(sel => {
+    const vid = $(sel);
+    if (!vid) return;
+    let lastTap = 0;
+    vid.addEventListener('touchend', (e) => {
+      // Don't intercept button clicks inside video
+      if (e.target.closest('button')) return;
+      const now = Date.now();
+      if (now - lastTap < 340 && now - lastTap > 0) {
+        e.preventDefault();
+        toggleNPFullscreen();
+      }
+      lastTap = now;
+    });
+    vid.addEventListener('dblclick', (e) => {
+      if (e.target.closest('button')) return;
+      e.preventDefault();
+      toggleNPFullscreen();
+    });
+  });
+
+  // Fast orientation & resize sync for mobile / WebView
+  window.addEventListener('resize', () => {
+    if (Player.videoMode && typeof syncVideoRect === 'function') syncVideoRect();
+  }, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    if (Player.videoMode && typeof syncVideoRect === 'function') {
+      syncVideoRect();
+      setTimeout(syncVideoRect, 100);
+      setTimeout(syncVideoRect, 300);
+    }
+  }, { passive: true });
+})();
 
 // Sync state if user exits via browser gesture / Escape
 document.addEventListener('fullscreenchange', () => {
