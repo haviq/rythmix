@@ -2626,7 +2626,7 @@ body:not(.paused) .np-art-wrap {
   transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
               opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              filter 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.15s ease,
               text-shadow 0.35s ease;
   line-height: 1.34;
   letter-spacing: -0.025em;
@@ -2638,28 +2638,23 @@ body:not(.paused) .np-art-wrap {
 }
 
 .lyric-line.active {
-  animation: lyr-in .7s cubic-bezier(.22, 1, .36, 1);
+  color: var(--lyric-now) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: scale(1.06) !important;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, .6), 0 0 24px rgba(255, 215, 94, 0.5) !important;
+  animation: lyr-pop 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes lyr-in {
+@keyframes lyr-pop {
   from {
-    opacity: 0;
-    transform: translateY(16px) scale(.97);
-    filter: blur(3px);
+    opacity: 0.85;
+    transform: scale(0.98);
   }
-
   to {
     opacity: 1;
-    transform: none;
-    filter: none;
+    transform: scale(1.06);
   }
-}
-
-.lyric-line.active {
-  color: var(--lyric-now);
-  opacity: 1;
-  transform: none;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, .6), 0 0 24px rgba(255, 215, 94, 0.5);
 }
 
 .lyric-line.active:hover {
@@ -6008,6 +6003,18 @@ body.np-fullscreen #miniplayer,
     filter: none !important;
     transform: scale(1.08) !important;
     text-shadow: 0 0 32px rgba(255, 215, 94, 0.65), 0 4px 18px rgba(0, 0, 0, 0.8) !important;
+    animation: lyr-pop-fs 0.32s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
+  @keyframes lyr-pop-fs {
+    from {
+      opacity: 0.85;
+      transform: scale(1.0);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1.08);
+    }
   }
 
   #nowplaying.fullscreen #np-queue.active,
