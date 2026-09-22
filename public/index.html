@@ -87,7 +87,7 @@ html, body {
   to   { opacity: 1; transform: translateY(0); }
 }
 </style>
-<link rel="stylesheet" href="styles.min.css?v=v71" />
+<link rel="stylesheet" href="styles.min.css?v=v72" />
 </head>
 <body>
 <div id="splash" aria-hidden="true">
@@ -303,6 +303,21 @@ html, body {
             </div>
           </div>
           <div id="np-lyric-preview" title="Open lyrics"></div>
+          <div id="np-card-lyrics" class="np-card-lyrics">
+            <div class="np-card-lyrics-header">
+              <div class="np-card-lyrics-title">
+                <svg class="ic"><use href="#i-mic"/></svg>
+                <span>Lyrics</span>
+              </div>
+              <button type="button" id="np-card-lyrics-expand" class="np-card-lyrics-expand-btn" title="Buka Tab Lirik">
+                <svg class="ic"><use href="#i-expand"/></svg>
+              </button>
+            </div>
+            <div id="np-card-lyrics-container" class="np-card-lyrics-container">
+              <div class="lyrics-empty">Memuat lirik…</div>
+            </div>
+            <div id="np-card-lyrics-source" class="np-card-lyrics-source"></div>
+          </div>
         </section>
         <section id="np-lyrics" class="np-pane">
           <div id="lyrics-toolbar">
@@ -356,7 +371,7 @@ html, body {
   <canvas id="pip-canvas" width="360" height="640"></canvas>
   <video id="pip-video" muted playsinline autoplay></video>
 </div>
-<script src="app.min.js?v=v71"></script>
+<script src="app.min.js?v=v72"></script>
 <script src="app-config.js?v=3"></script>
 </body>
 </html>

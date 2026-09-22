@@ -10,6 +10,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 const icon = (id, cls = 'ic') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 
+const allLyricsContainers = () => [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container'), ...$$('#np-card-lyrics-container')];
+const allLyricsSources = () => [...$$('#lyrics-source'), ...$$('#ytm-lyrics-source'), ...$$('#np-card-lyrics-source')];
+
 const api = async (path) => {
   const r = await fetch(path);
   if (!r.ok) throw new Error(`${path} -> ${r.status}`);
@@ -70,6 +73,8 @@ function openNowPlaying() {
   if (body) body.scrollTop = 0;
   document.body.classList.add('np-open');
   requestAnimationFrame(syncVideoRect);
+  renderLyrics();
+  setTimeout(() => scrollActiveLyricIntoView(false), 50);
 }
 function closeNowPlaying() {
   Player.pending = null;
@@ -756,10 +761,10 @@ function startCurrent() {
       // maybeRetryLyrics re-fetches with the real duration once PLAYING. Waiting for
       // PLAYING before any fetch made lyrics lag the song by seconds.
       loadLyrics(s);
-      [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+      allLyricsContainers().forEach(c => {
         if (c) c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
       });
-      [...$$('#lyrics-source'), ...$$('#ytm-lyrics-source')].forEach(src => {
+      allLyricsSources().forEach(src => {
         if (src) src.textContent = '';
       });
       $('#np-lyric-preview').textContent = '';
@@ -1079,7 +1084,7 @@ async function loadLyrics(song, { silent = false } = {}) {
     .find((x) => x && !looksLikePlays(x)) || '';
   const title = displayTitle(song.title) || song.title;
   if (!silent && !Player.lyrics.synced && !Player.lyrics.plain) {
-    [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+    allLyricsContainers().forEach(c => {
       if (c) c.innerHTML = '<div class="lyrics-empty">Looking for lyrics…</div>';
     });
   }
@@ -1267,7 +1272,7 @@ function renderLyrics() {
       <button class="pill-btn lyrics-manual">${icon('i-search')}<span>Cari manual</span></button></div>`;
   }
 
-  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+  allLyricsContainers().forEach(c => {
     if (!c) return;
     c.innerHTML = html;
     if (L.lines.length) {
@@ -1302,7 +1307,7 @@ function renderLyrics() {
     }
   });
 
-  [...$$('#lyrics-source'), ...$$('#ytm-lyrics-source')].forEach(src => {
+  allLyricsSources().forEach(src => {
     if (src) src.textContent = L.source ? `Lyrics provided by ${L.source}` : '';
   });
 
@@ -1320,7 +1325,7 @@ function renderLyrics() {
   }
 }
 function scrollActiveLyricIntoView(smooth = true) {
-  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+  allLyricsContainers().forEach(c => {
     if (!c) return;
     const active = c.querySelector('.lyric-line.active');
     if (!active) return;
@@ -1340,13 +1345,14 @@ function updateLyricHighlight(cur) {
   // (scrollIntoView = forced reflow; Lighthouse "Forced reflow")
   const npLyricsVisible = $('#np-lyrics') && $('#np-lyrics').classList.contains('active');
   const ytmLyricsVisible = $('#ytm-lyrics-container') && $('#ytm-lyrics-container').closest('.ytm-section') && !$('#ytm-lyrics-container').closest('.ytm-section').classList.contains('hidden') && location.hash === '#/ytm';
-  const lyricsVisible = npLyricsVisible || ytmLyricsVisible;
+  const npCardLyricsVisible = $('#np-card-lyrics-container') && $('#nowplaying') && !$('#nowplaying').classList.contains('hidden') && $('#np-player') && $('#np-player').classList.contains('active');
+  const lyricsVisible = npLyricsVisible || ytmLyricsVisible || npCardLyricsVisible;
   if (!lyricsVisible && !Player.floatOn) { $('#np-lyric-preview').textContent = ''; return; }
   let idx = -1;
   for (let i = 0; i < L.lines.length; i++) { if (cur >= lrcToAudio(L.lines[i].t) - 0.2) idx = i; else break; }
   if (idx === lastLyricIdx) return;
   lastLyricIdx = idx;
-  [...$$('#lyrics-container'), ...$$('#ytm-lyrics-container')].forEach(c => {
+  allLyricsContainers().forEach(c => {
     if (!c) return;
     $$('.lyric-line', c).forEach((el, i) => {
       el.classList.toggle('active', i === idx);
@@ -4122,6 +4128,19 @@ $('#np-volume').addEventListener('input', (e) => {
   $('#mini-volume').value = e.target.value;
 });
 $('#np-lyric-preview').addEventListener('click', () => switchNPTab('lyrics'));
+const npCardExpand = $('#np-card-lyrics-expand');
+if (npCardExpand) {
+  npCardExpand.addEventListener('click', (e) => {
+    e.stopPropagation();
+    switchNPTab('lyrics');
+  });
+}
+const npCardHeader = $('.np-card-lyrics-header');
+if (npCardHeader) {
+  npCardHeader.addEventListener('click', () => {
+    switchNPTab('lyrics');
+  });
+}
 $('#np-sleep').addEventListener('click', openSleepTimer);
 const npShare = $('#np-share');
 if (npShare) npShare.addEventListener('click', () => shareSong(focusedSong()));
@@ -4181,6 +4200,13 @@ function switchNPTab(name) {
   }
 
   requestAnimationFrame(syncVideoRect); // v2.7: tab bukan player -> video hilang
+  if (name === 'player') {
+    lastLyricIdx = -2;
+    renderLyrics();
+    setTimeout(() => {
+      scrollActiveLyricIntoView(false);
+    }, 40);
+  }
   if (name === 'related') loadRelated();
   if (name === 'lyrics') {
     lastLyricIdx = -2;
