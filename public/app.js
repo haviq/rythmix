@@ -1269,10 +1269,13 @@ function renderLyrics() {
     npCard.style.setProperty('backdrop-filter', 'none', 'important');
     npCard.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     npCard.style.setProperty('outline', 'none', 'important');
+    npCard.style.setProperty('text-align', 'center', 'important');
   }
   const npCardContainer = $('#np-card-lyrics-container');
   if (npCardContainer) {
     npCardContainer.style.setProperty('scrollbar-width', 'none', 'important');
+    npCardContainer.style.setProperty('text-align', 'center', 'important');
+    npCardContainer.style.setProperty('align-items', 'center', 'important');
   }
   const L = Player.lyrics;
   let html = '';

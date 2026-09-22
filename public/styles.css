@@ -3824,7 +3824,7 @@ body.np-fullscreen #yt-holder.video-pos,
   #nowplaying .np-actions {
     gap: 8px;
     flex-wrap: nowrap;
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   #nowplaying .np-actions .pill-btn {
@@ -6759,9 +6759,11 @@ html[data-theme="light"] .np-card-lyrics {
 .np-card-lyrics-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  position: relative;
+  width: 100%;
   margin-bottom: 6px;
-  padding: 0 2px;
+  padding: 0 4px;
   flex-shrink: 0;
   cursor: pointer;
   user-select: none;
@@ -6790,6 +6792,10 @@ html[data-theme="light"] .np-card-lyrics {
 }
 
 .np-card-lyrics-expand-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   color: var(--muted);
@@ -6805,7 +6811,7 @@ html[data-theme="light"] .np-card-lyrics {
 .np-card-lyrics-expand-btn:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.08);
-  transform: scale(1.1);
+  transform: translateY(-50%) scale(1.1);
 }
 
 html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
@@ -6827,6 +6833,8 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
   padding: 24px 2px !important;
   display: flex;
   flex-direction: column;
+  align-items: center !important;
+  text-align: center !important;
   mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
   scroll-behavior: smooth;
@@ -6842,17 +6850,19 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
   font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
   font-size: clamp(17px, 1.8vw, 22px);
   font-weight: 800;
-  padding: 7px 4px;
+  padding: 7px 8px;
   line-height: 1.4;
   letter-spacing: -0.015em;
-  text-align: left;
+  text-align: center !important;
+  width: 100%;
+  box-sizing: border-box;
   color: rgba(255, 255, 255, 0.35);
   opacity: 0.92;
   filter: blur(0.8px);
   cursor: pointer;
   border-radius: 6px;
   transform: scale(0.98);
-  transform-origin: left center;
+  transform-origin: center center !important;
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
@@ -6876,8 +6886,8 @@ html[data-theme="light"] .np-card-lyrics-container .lyric-line:hover {
   color: #ffd75e !important;
   opacity: 1 !important;
   filter: none !important;
-  transform: scale(1.03) !important;
-  transform-origin: left center !important;
+  transform: scale(1.04) !important;
+  transform-origin: center center !important;
   text-shadow: 0 0 16px rgba(255, 215, 94, 0.4) !important;
 }
 
@@ -6896,6 +6906,8 @@ html[data-theme="light"] .np-card-lyrics-container .lyric-line.past {
   color: rgba(255, 255, 255, 0.88);
   white-space: pre-wrap;
   padding: 8px 4px;
+  text-align: center !important;
+  width: 100%;
 }
 
 html[data-theme="light"] .np-card-lyrics-container .lyric-plain {
@@ -6913,11 +6925,12 @@ html[data-theme="light"] .np-card-lyrics-container .lyric-plain {
 .np-card-lyrics-source {
   font-size: 10px;
   color: var(--muted);
-  text-align: right;
+  text-align: center !important;
   opacity: 0.6;
   margin-top: 4px;
   padding: 0 4px;
   flex-shrink: 0;
+  width: 100%;
 }
 
 #nowplaying.fullscreen .np-card-lyrics {
