@@ -59,7 +59,15 @@ function toggleTheme() {
   updateThemeIcon();
 }
 function openNowPlaying() {
-  $('#nowplaying').classList.remove('hidden');
+  const np = $('#nowplaying');
+  if (np) {
+    np.classList.remove('hidden');
+    np.scrollTop = 0;
+  }
+  const inner = $('.np-inner');
+  if (inner) inner.scrollTop = 0;
+  const body = $('.np-body');
+  if (body) body.scrollTop = 0;
   document.body.classList.add('np-open');
   requestAnimationFrame(syncVideoRect);
 }
@@ -1295,6 +1303,18 @@ function renderLyrics() {
     syncFloatLyric('');
   }
 }
+function scrollActiveLyricIntoView(smooth = true) {
+  const c = $('#lyrics-container');
+  if (!c) return;
+  const active = c.querySelector('.lyric-line.active');
+  if (!active) return;
+  const targetTop = active.offsetTop - (c.clientHeight / 2) + (active.clientHeight / 2);
+  c.scrollTo({
+    top: Math.max(0, targetTop),
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+}
+
 let lastLyricIdx = -1;
 function updateLyricHighlight(cur) {
   const L = Player.lyrics;
@@ -1312,8 +1332,7 @@ function updateLyricHighlight(cur) {
     el.classList.toggle('active', i === idx);
     el.classList.toggle('past', i < idx);
   });
-  const active = c.querySelector('.lyric-line.active');
-  if (active && lyricsVisible) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (lyricsVisible) scrollActiveLyricIntoView(true);
   const line = idx >= 0 ? L.lines[idx].text : '';
   $('#np-lyric-preview').textContent = line;
   syncFloatLyric(line);
@@ -3826,11 +3845,35 @@ range.addEventListener('change', () => {
 });
 
 function switchNPTab(name) {
+  const np = $('#nowplaying');
+  if (np) np.scrollTop = 0;
+  const inner = $('.np-inner');
+  if (inner) inner.scrollTop = 0;
+  const body = $('.np-body');
+  if (body) body.scrollTop = 0;
+
   $$('.np-tab').forEach((t) => t.classList.toggle('active', t.dataset.nptab === name));
-  $$('.np-pane').forEach((p) => p.classList.toggle('active', p.id === 'np-' + name));
-  requestAnimationFrame(syncVideoRect); // v2.7: tab bukan player → video hilang
+  $$('.np-pane').forEach((p) => {
+    const isActive = p.id === 'np-' + name;
+    p.classList.toggle('active', isActive);
+    if (isActive && p.id !== 'np-lyrics') {
+      p.scrollTop = 0;
+    }
+  });
+
+  const modeRow = $('#np-mode-row');
+  if (modeRow) {
+    modeRow.style.display = (name === 'player') ? '' : 'none';
+  }
+
+  requestAnimationFrame(syncVideoRect); // v2.7: tab bukan player -> video hilang
   if (name === 'related') loadRelated();
-  if (name === 'lyrics') { lastLyricIdx = -2; }
+  if (name === 'lyrics') {
+    lastLyricIdx = -2;
+    setTimeout(() => {
+      scrollActiveLyricIntoView(false);
+    }, 40);
+  }
   if (name === 'queue') renderQueue();
 }
 $$('.np-tab').forEach((t) => t.addEventListener('click', () => switchNPTab(t.dataset.nptab)));
@@ -4548,8 +4591,7 @@ function toggleNPFullscreen() {
   // Auto scroll active lyric into center view
   if (isFs && $('#np-lyrics') && $('#np-lyrics').classList.contains('active')) {
     setTimeout(() => {
-      const active = $('#lyrics-container .lyric-line.active');
-      if (active) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      scrollActiveLyricIntoView(true);
     }, 150);
   }
 
