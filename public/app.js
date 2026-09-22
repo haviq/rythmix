@@ -340,9 +340,23 @@ window.onYouTubeIframeAPIReady = () => {
             applyPlaybackQuality();
             setTimeout(applyPlaybackQuality, 500);
             setTimeout(applyPlaybackQuality, 2000);
+            if (Player.videoMode) {
+              // Wait 400ms so initial YouTube title card and loading buffer are completely gone
+              setTimeout(() => {
+                if (Player.videoMode && Player.yt && Player.yt.getPlayerState && Player.yt.getPlayerState() === 1) {
+                  document.body.classList.add('video-active');
+                }
+              }, 400);
+            }
           }
         }
-        if (e.data === YT.PlayerState.BUFFERING) applyPlaybackQuality();
+        if (e.data === YT.PlayerState.BUFFERING) {
+          applyPlaybackQuality();
+        }
+        if (e.data === -1 || e.data === 2) {
+          // unstarted or paused between tracks
+          if (Player._switching) document.body.classList.remove('video-active');
+        }
         // BUFFERING is NOT paused — treating it as paused flashes the play/pause icon
         // (visible as pause/resume blink when SponsorBlock skips a segment mid-track).
         document.body.classList.toggle('paused', e.data !== YT.PlayerState.PLAYING && e.data !== YT.PlayerState.BUFFERING);
@@ -656,6 +670,7 @@ function startCurrent() {
     if (loadId !== Player.loadId) return;
     const tryPlay = () => {
       if (loadId !== Player.loadId) return;
+      document.body.classList.remove('video-active');
       if (!Player.ready) return setTimeout(tryPlay, 300);
       Player.yt.loadVideoById({ videoId: s.videoId, suggestedQuality: suggestedQuality() });
       // v3.6.2: ala YouTube Music — begitu lagu baru mulai, UI progress DIPAKSA ke 0:00
@@ -3567,6 +3582,14 @@ function toggleVideoMode() {
     Player.videoMode = !Player.videoMode;
     store.set('vid_mode', Player.videoMode);
     document.body.classList.toggle('show-video', Player.videoMode);
+    if (!Player.videoMode) {
+      document.body.classList.remove('video-active');
+    } else {
+      const isPl = Player.yt && Player.ready && Player.yt.getPlayerState && Player.yt.getPlayerState() === 1;
+      if (isPl) {
+        setTimeout(() => document.body.classList.add('video-active'), 350);
+      }
+    }
     try { moveWebVideo(Player.videoMode); } catch { }
     // v3.7d: video TIDAK di-reload — iframe sudah memutar lagu ini di holder;
     // toggle ON/OFF murni overlay posisi → audio tak pernah putus.
@@ -3614,7 +3637,8 @@ function syncVideoRect() {
       holder.style.top = Math.round(r.top) + 'px';
       holder.style.width = Math.round(r.width) + 'px';
       holder.style.height = Math.round(r.height) + 'px';
-      holder.style.zIndex = 62;
+      const isFs = document.body.classList.contains('np-fullscreen') || ($('#nowplaying') && $('#nowplaying').classList.contains('fullscreen'));
+      holder.style.zIndex = isFs ? '120' : '62';
     } else {
       holder.classList.remove('video-pos');
       holder.style.left = ''; holder.style.top = '';
@@ -3782,6 +3806,14 @@ function rmTapPlay(el) {
   });
 }
 ['#mini-art', '#mini-title', '#mini-artist', '#np-art', '#np-title'].forEach((id) => { try { rmTapPlay($(id)); } catch { } });
+const npVid = $('#np-video');
+if (npVid) {
+  npVid.style.cursor = 'pointer';
+  npVid.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlay();
+  });
+}
 
 let seekDragging = false;
 const range = $('#np-range');
@@ -3805,10 +3837,28 @@ $$('.np-tab').forEach((t) => t.addEventListener('click', () => switchNPTab(t.dat
 
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.metaKey || e.ctrlKey) && e.code === 'KeyK') {
+    e.preventDefault();
+    go('#/search');
+    setTimeout(() => {
+      const inp = $('.search-bar input');
+      if (inp) inp.focus();
+    }, 60);
+    return;
+  }
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
   if (e.code === 'ArrowRight' && e.shiftKey) nextTrack(false);
   if (e.code === 'ArrowLeft' && e.shiftKey) prevTrack();
-  if (e.code === 'Escape') closeNowPlaying();
+  if (e.code === 'KeyF') { e.preventDefault(); toggleNPFullscreen(); return; }
+  if (e.code === 'Escape') {
+    const np = $('#nowplaying');
+    if (np && np.classList.contains('fullscreen')) {
+      toggleNPFullscreen();
+      return;
+    }
+    closeNowPlaying();
+    return;
+  }
   if (e.code === 'KeyL') toggleTheme();
   if (e.code === 'KeyP') { e.preventDefault(); toggleFloatWidget(); }
 });
@@ -4373,3 +4423,102 @@ if ($('#np-speed-toggle')) {
     toast(`Speed: ${Player.speed}×`);
   });
 }
+
+/* ---------- Resizable Now Playing panel on desktop ---------- */
+(() => {
+  const resizer = $('#np-resizer');
+  const np = $('#nowplaying');
+  if (!resizer || !np) return;
+
+  // Restore saved width from localStorage
+  const savedW = localStorage.getItem('rm_np_width');
+  if (savedW && Number(savedW) >= 280 && Number(savedW) <= 900) {
+    document.documentElement.style.setProperty('--np-width', savedW + 'px');
+  }
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  const onPointerDown = (e) => {
+    if (window.innerWidth < 861) return;
+    dragging = true;
+    startX = e.clientX;
+    startW = np.getBoundingClientRect().width;
+    resizer.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragging) return;
+    const dx = startX - e.clientX; // dragging left increases drawer width
+    const minW = 280;
+    const maxW = Math.min(window.innerWidth * 0.52, 720);
+    const newW = Math.max(minW, Math.min(maxW, Math.round(startW + dx)));
+    document.documentElement.style.setProperty('--np-width', newW + 'px');
+    if (typeof syncVideoRect === 'function') {
+    syncVideoRect();
+    setTimeout(syncVideoRect, 50);
+    setTimeout(syncVideoRect, 150);
+    setTimeout(syncVideoRect, 320);
+  }
+  };
+
+  const onPointerUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('resizing');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    const w = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--np-width') || '350', 10);
+    localStorage.setItem('rm_np_width', w);
+  };
+
+  resizer.addEventListener('pointerdown', onPointerDown);
+  resizer.addEventListener('dblclick', () => {
+    document.documentElement.style.setProperty('--np-width', '350px');
+    localStorage.removeItem('rm_np_width');
+    if (typeof syncVideoRect === 'function') syncVideoRect();
+  });
+})();
+
+/* ---------- Toggle Fullscreen for Now Playing (UI Pro Max) ---------- */
+function toggleNPFullscreen() {
+  const np = $('#nowplaying');
+  if (!np) return;
+
+  if (np.classList.contains('hidden')) {
+    openNowPlaying();
+  }
+
+  const isFs = np.classList.toggle('fullscreen');
+  document.body.classList.toggle('np-fullscreen', isFs);
+
+  const fsIc = $('#np-fs-ic use');
+  if (fsIc) {
+    fsIc.setAttribute('href', isFs ? '#i-compress' : '#i-expand');
+  }
+
+  const fsBtn = $('#np-fullscreen');
+  if (fsBtn) {
+    fsBtn.title = isFs ? 'Keluar Layar Penuh (Esc / F)' : 'Layar Penuh / Fullscreen (F)';
+  }
+
+  // Auto scroll active lyric into center view
+  if (isFs && $('#np-lyrics') && $('#np-lyrics').classList.contains('active')) {
+    setTimeout(() => {
+      const active = $('#lyrics-container .lyric-line.active');
+      if (active) active.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 150);
+  }
+
+  if (typeof syncVideoRect === 'function') syncVideoRect();
+}
+
+const npFsBtn = $('#np-fullscreen');
+if (npFsBtn) npFsBtn.addEventListener('click', toggleNPFullscreen);
