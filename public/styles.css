@@ -6726,25 +6726,24 @@ body.show-video #yt-holder.video-pos .np-video-fs-btn {
   flex-direction: column;
   width: 100%;
   flex: 1 1 auto;
-  min-height: 200px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 14px 16px 12px;
+  min-height: 180px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 4px 2px 12px;
   box-sizing: border-box;
   margin-top: 10px;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  transition: background 0.25s ease, border-color 0.25s ease;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 html[data-theme="light"] .np-card-lyrics {
-  background: rgba(0, 0, 0, 0.03);
-  border-color: rgba(0, 0, 0, 0.07);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .np-card-lyrics-header {
@@ -6752,7 +6751,7 @@ html[data-theme="light"] .np-card-lyrics {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
-  padding: 0 4px;
+  padding: 0 2px;
   flex-shrink: 0;
   cursor: pointer;
   user-select: none;
@@ -6814,8 +6813,8 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
   min-height: 0 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  scrollbar-width: thin;
-  padding: 28px 6px !important;
+  scrollbar-width: none !important;
+  padding: 24px 2px !important;
   display: flex;
   flex-direction: column;
   mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
@@ -6824,21 +6823,16 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
 }
 
 .np-card-lyrics-container::-webkit-scrollbar {
-  width: 4px;
-}
-.np-card-lyrics-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-.np-card-lyrics-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .np-card-lyrics-container .lyric-line {
   font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
   font-size: clamp(17px, 1.8vw, 22px);
   font-weight: 800;
-  padding: 7px 8px;
+  padding: 7px 4px;
   line-height: 1.4;
   letter-spacing: -0.015em;
   text-align: left;
@@ -6846,7 +6840,7 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
   opacity: 0.92;
   filter: blur(0.8px);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 6px;
   transform: scale(0.98);
   transform-origin: left center;
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -6860,7 +6854,7 @@ html[data-theme="light"] .np-card-lyrics-container .lyric-line {
 .np-card-lyrics-container .lyric-line:hover {
   color: rgba(255, 255, 255, 0.92);
   filter: none;
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent !important;
 }
 
 html[data-theme="light"] .np-card-lyrics-container .lyric-line:hover {
