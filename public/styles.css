@@ -2627,7 +2627,7 @@ body:not(.paused) .np-art-wrap {
 #np-lyric-preview,
 #fw-lyric,
 #np-lyric-preview-float {
-  font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .lyric-line {
@@ -4682,7 +4682,7 @@ html[data-theme="light"] .modal-card .pl-form-input {
 }
 
 .ytm-lyrics-display .lyric-line {
-  font-family: Taste Bread HD, -apple-system, system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: clamp(24px, 3.5vw, 40px);
   font-weight: 850;
   padding: 10px 8px;
@@ -6465,7 +6465,7 @@ body.np-fullscreen #nav-mobile,
   }
 
   #nowplaying.fullscreen .lyric-line {
-    font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif !important;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: clamp(28px, 4vw, 48px) !important;
     font-weight: 850 !important;
     padding: 14px 8px !important;
@@ -6876,7 +6876,7 @@ html[data-theme="light"] .np-card-lyrics-expand-btn:hover {
 }
 
 .np-card-lyrics-container .lyric-line {
-  font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: clamp(17px, 1.8vw, 22px);
   font-weight: 800;
   padding: 7px 8px;

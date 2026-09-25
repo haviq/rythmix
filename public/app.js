@@ -4328,7 +4328,7 @@ const FW_CSS = `
   .fw-meta { min-width: 0; flex: 1; }
   #fw-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #fw-artist { font-size: 12px; opacity: .65; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #fw-lyric { margin-top: 5px; font-family: 'Taste Bread HD', -apple-system, system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
+  #fw-lyric { margin-top: 5px; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; font-weight: 700; color: #ffd700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; line-height: 1.3; }
   #fw-lyric:empty { display: none; }
   .fw-bar { margin-top: 8px; height: 4px; background: rgba(255,255,255,.22); border-radius: 99px; cursor: pointer; overflow: hidden; }
   html[data-theme="light"] .fw-bar { background: rgba(0,0,0,.18); }
@@ -4606,7 +4606,7 @@ function drawPipFrame() {
   ctx.textBaseline = 'middle';
   if (!lines.length) {
     ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '700 26px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
+    ctx.font = '700 26px "Plus Jakarta Sans", Figtree, Segoe UI, sans-serif';
     ctx.fillText('No lyrics', w / 2, h / 2, maxW);
     return;
   }
@@ -4623,7 +4623,7 @@ function drawPipFrame() {
   const blocks = [];
   for (let i = from; i <= to; i++) {
     const active = i === idx;
-    ctx.font = active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
+    ctx.font = active ? '800 30px "Plus Jakarta Sans", Figtree, Segoe UI, sans-serif' : '600 20px "Plus Jakarta Sans", Figtree, Segoe UI, sans-serif';
     const wrapped = wrapCanvasText(ctx, lines[i], maxW);
     const lh = active ? 38 : 28;
     blocks.push({ i, active, wrapped, lh, h: wrapped.length * lh });
@@ -4636,7 +4636,7 @@ function drawPipFrame() {
   }
   let y = h / 2 - yOff - (activeBlock.h / 2);
   for (const b of blocks) {
-    ctx.font = b.active ? '800 30px "Taste Bread HD", Figtree, Segoe UI, sans-serif' : '600 20px "Taste Bread HD", Figtree, Segoe UI, sans-serif';
+    ctx.font = b.active ? '800 30px "Plus Jakarta Sans", Figtree, Segoe UI, sans-serif' : '600 20px "Plus Jakarta Sans", Figtree, Segoe UI, sans-serif';
     ctx.fillStyle = b.active ? '#ffd700' : (b.i < idx ? 'rgba(255,255,255,0.40)' : 'rgba(255,255,255,0.26)');
     let ly = y + b.lh / 2;
     for (const t of b.wrapped) {
