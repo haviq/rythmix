@@ -1,4 +1,4 @@
-# Rythmix Music ..m
+# Rythmix Music .
 
 **Pemutar musik web gratis** dengan tampilan bergaya Spotify dan katalog berbasis YouTube Music. Tanpa akun.
 
