@@ -10,7 +10,7 @@ Project ini gratis dan bebas digunakan. Kamu dapat menjalankan, mengubah, melaku
 ---
 
 ## Tentang
-
+ .
 Rythmix Music adalah pemutar musik berbasis web yang memungkinkan kamu mencari dan memutar musik langsung dari browser.
 
 Tersedia berbagai fitur seperti pencarian lagu, album dan artis, playlist, favorit, riwayat pemutaran, lirik, antrian lagu, serta berbagai pengaturan pemutar.
